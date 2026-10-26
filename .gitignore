@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+repos/
+venv/
+work/
+harness/venvs/
+harness/work-*/
