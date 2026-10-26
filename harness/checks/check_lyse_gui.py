@@ -386,4 +386,12 @@ finally:
     app.terminate_all_workers()
     wait_until(lambda: all(app.workers_terminated().values()), 15)
     app.server.shutdown()
+    # As lyse does when it exits: stop the output box's thread and delete the windows
+    # now, rather than in PyQt's QObject cleanup at exit, during which Python code that
+    # creates or destroys wrapped Qt objects can crash the interpreter
+    # (https://github.com/Python-SIP/sip/pull/121).
+    app.output_box.shutdown()
+    for widget in QtWidgets.QApplication.topLevelWidgets():
+        widget.deleteLater()
+    QtCore.QCoreApplication.sendPostedEvents(None, QtCore.QEvent.Type.DeferredDelete)
 finish()
