@@ -71,6 +71,8 @@ STEPS = [
     ('apps', ['compile']),
     ('lyse-gui', ['compile']),
     ('blacs-shot', ['compile']),
+    ('blacs-workers', ['profile']),
+    ('runmanager-abort', ['profile']),
     ('zprocess-tests', []),
 ]
 DEFAULT_SKIP = ['zprocess-tests']

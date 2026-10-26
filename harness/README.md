@@ -79,6 +79,8 @@ error window. labscript-utils releases before 3.5.0 ignore the variable.
 | `apps` | runmanager, runviewer, lyse and BLACS start under `QT_QPA_PLATFORM=offscreen`, listen on their labconfig ports and run for five seconds; the runmanager remote API is exercised; `zprocess.port_in_use`, when installed, returns the right result for each port and for a free port, and its times are reported; a second copy of each application reports that its port is in use, and the second BLACS creates no device tabs; the output of each is checked for tracebacks |
 | `lyse-gui` | The lyse GUI in this process under `QT_QPA_PLATFORM=offscreen`: a shot file that has not been run is not loaded; the results of two enabled single-shot routines appear in the dataframe and the shots table and a disabled routine does not run; results saved when the shot is analysed again replace them; lyse code issues no `DeprecationWarning` when the results add columns to the dataframe; a routine error pauses analysis and keeps the results saved before it; a routine that loops in Python and a routine blocked in a long sleep are interrupted by the Abort button and their workers survive, a routine that ignores the interrupt with an HDF5 file open has its worker restarted when it closes the file, without a kill, and the file is readable, analysis is paused in each case, and an interrupted worker then runs a routine to completion; in a subprocess, the Edit columns dialog survives being updated as 200 columns are added one at a time |
 | `blacs-shot` | lyse and BLACS start; a copy of the example shot is submitted to BLACS as runmanager submits it, and BLACS runs it with the dummy devices of the profile's connection table and sends it to lyse; the same file submitted again runs as a repeat in a new file; both shot files have a run time and a `data` group, in which the FunctionRunner's stop function recorded that both functions ran; the output of both applications has no tracebacks and BLACS.log has no errors |
+| `blacs-workers` | A BLACS device tab runs in this process under `QT_QPA_PLATFORM=offscreen` with a worker from `fixtures/blacs_workers/`. A restart while the worker is idle, in `time.sleep()` or in a Python loop ends the worker promptly with exit status 0; a worker with a job that ignores `KeyboardInterrupt` exits after its abort timeout, or when the job closes its HDF5 file, which is then readable; outside Windows a worker stopped with `SIGSTOP` is killed after the quit timeout (the timeouts are shortened); after each restart the new worker runs a job. A fatal error ends the worker without calling its `shutdown()`. The stop button runs `shutdown()` and ends the worker, the stopped tab runs no states and has a message that cannot be dismissed, and the button starts the tab again |
+| `runmanager-abort` | The runmanager GUI in this process under `QT_QPA_PLATFORM=offscreen` compiles the experiment in `fixtures/runmanager_abort/`. The Abort button interrupts a compilation in `time.sleep()` or in a Python loop, the next shot is not compiled and the compiler keeps running; Restart subprocess ends a compiler in a Python loop promptly with exit status 0, one that ignores `KeyboardInterrupt` after its abort timeout, and outside Windows kills one stopped with `SIGSTOP` after the quit timeout (the timeouts are shortened); after each the compiler compiles three shots |
 | `zprocess-tests` | The zprocess test suite with pytest. Skipped unless `--all` or `--step zprocess-tests` is given; it takes two minutes |
 
 A check for a known open bug is marked `KNOWN` in the log and does not fail the step.
@@ -92,7 +94,12 @@ smaller than 1.5 MB after 600 writes is marked as known for runmanager #144. The
 checks that a second copy of an application reports that its port is in use are marked
 as known for blacs #138, lyse #159, runmanager #146 and runviewer #80, and the
 `blacs-shot` checks of a shot that is submitted as soon as BLACS listens are marked as
-known for blacs #138.
+known for blacs #138. The `blacs-workers` checks of the exit status and the time taken
+are marked as known for the blacs `worker-quit` branch, and the checks of a fatal error
+and of the stop button for the blacs `stop-tab` branch, with the stop button checks run
+only when the tab has one. The `runmanager-abort` checks of the Abort button and of the
+time taken and exit status after Restart subprocess are marked as known for the
+runmanager `interrupt-compile` branch.
 
 ## The profile
 
@@ -142,3 +149,11 @@ can check that compiler output is streamed.
 the example connection table and `example_experiment.py`, after their device
 definitions. The experiment adds one function at the start of the shot and one at the
 stop, which records in the shot's `data/function_runner` group that both ran.
+
+`fixtures/blacs_workers/` holds the BLACS worker of the `blacs-workers` step, with jobs
+that sleep, loop, ignore `KeyboardInterrupt`, write an HDF5 file and stop the process, a
+job that sets the worker's timeouts, and a `shutdown()` method that records its call.
+
+`fixtures/runmanager_abort/` holds the experiment of the `runmanager-abort` step. The
+global `mode` sets what it does after `start()`, and the globals `abort_timeout` and
+`kill_lock_timeout` set the compiler's timeouts.
