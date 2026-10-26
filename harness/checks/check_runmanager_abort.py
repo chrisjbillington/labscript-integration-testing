@@ -26,7 +26,7 @@ EXPERIMENT = str(FIXTURES / 'runmanager_abort' / 'experiment.py')
 import runmanager  # noqa: E402
 from qtutils.qt import QtCore, QtWidgets  # noqa: E402
 
-FEATURE = 'runmanager interrupt-compile branch'
+FEATURE = 'runmanager #152'
 HAS_FEATURE = 'ABORT_TIMEOUT' in (Path(runmanager.__file__).parent / 'batch_compiler.py').read_text()
 KNOWN = None if HAS_FEATURE else FEATURE
 # Slack in the upper bound of each duration, for slow runners:

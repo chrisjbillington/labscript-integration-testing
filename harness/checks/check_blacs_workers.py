@@ -42,8 +42,8 @@ from blacs.tab_base_classes import (
 from labscript_utils.qtwidgets.dragdroptab import DragDropTabWidget
 
 ALL = MODE_MANUAL | MODE_BUFFERED | MODE_TRANSITION_TO_BUFFERED | MODE_TRANSITION_TO_MANUAL
-QUIT_FEATURE = 'blacs worker-quit branch'
-STOP_FEATURE = 'blacs stop-tab branch'
+QUIT_FEATURE = 'blacs #145'
+STOP_FEATURE = 'blacs #146'
 HAS_QUIT = hasattr(blacs.tab_base_classes, 'WORKER_QUIT_TIMEOUT')
 HAS_STOP = hasattr(Tab, 'stop')
 # Slack in the upper bound of each duration, for slow runners:

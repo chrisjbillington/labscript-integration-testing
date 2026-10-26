@@ -95,11 +95,10 @@ checks that a second copy of an application reports that its port is in use are 
 as known for blacs #138, lyse #159, runmanager #146 and runviewer #80, and the
 `blacs-shot` checks of a shot that is submitted as soon as BLACS listens are marked as
 known for blacs #138. The `blacs-workers` checks of the exit status and the time taken
-are marked as known for the blacs `worker-quit` branch, and the checks of a fatal error
-and of the stop button for the blacs `stop-tab` branch, with the stop button checks run
-only when the tab has one. The `runmanager-abort` checks of the Abort button and of the
-time taken and exit status after Restart subprocess are marked as known for the
-runmanager `interrupt-compile` branch.
+are marked as known for blacs #145, and the checks of a fatal error and of the stop
+button for blacs #146, with the stop button checks run only when the tab has one. The
+`runmanager-abort` checks of the Abort button and of the time taken and exit status
+after Restart subprocess are marked as known for runmanager #152.
 
 ## The profile
 
