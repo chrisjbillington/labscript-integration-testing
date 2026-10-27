@@ -240,6 +240,7 @@ def save(window):
         'color_scheme': scheme,
         'window_colour': window_colour.name(),
         'window_is_dark': window_colour.lightness() < 128,
+        'window_active': window.isActiveWindow(),
         'device_pixel_ratio': window.devicePixelRatioF(),
         'font': qapp.font().toString(),
     }
@@ -270,6 +271,8 @@ def take_screenshot():
     # The mouse pointer does not highlight the widgets under it:
     window.setWindowFlag(QtCore.Qt.WindowType.WindowTransparentForInput)
     window.showNormal()
+    window.raise_()
+    window.activateWindow()
     use_active_colours()
     window.resize(width, height)
     settle()
