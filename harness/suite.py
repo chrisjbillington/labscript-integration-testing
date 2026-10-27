@@ -98,17 +98,14 @@ def default_venv(python):
 
 
 def venv_python(venv):
+    """The interpreter of a venv, or of a conda env, which on Windows has it at the top
+    level instead of in Scripts."""
     venv = Path(venv)
     if sys.platform == 'win32':
+        if (venv / 'conda-meta').is_dir():
+            return venv / 'python.exe'
         return venv / 'Scripts' / 'python.exe'
     return venv / 'bin' / 'python'
-
-
-def venv_bin(venv, name):
-    venv = Path(venv)
-    if sys.platform == 'win32':
-        return venv / 'Scripts' / f'{name}.exe'
-    return venv / 'bin' / name
 
 
 def uv_command():

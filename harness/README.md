@@ -57,6 +57,19 @@ again.
 should use a `--repos-dir` and a `--venv` of its own if the clones there are used for
 other work.
 
+`test --venv` also accepts a conda env in which the suite is installed from conda
+packages. `install` does not make conda envs, so write `harness.json` in the env
+yourself, with an empty `components` so that `test` does not compare the clones with the
+installed packages, and run `test` with the env activated, for example with `conda run`:
+
+```
+{"python": "3.14.10 (conda)", "qt": "PySide6", "pins": [], "repos_dir": "<path to the clones>", "install_ok": true, "components": {}}
+```
+
+Only the `zprocess-tests` step uses the clones; it runs the tests of the zprocess clone,
+which should then be at the commit that the zprocess package was built from. The
+report's component table is empty.
+
 `test` runs the steps below in order and writes `report.md`, `state.json` and one log
 per step to `harness/work-py<version>/` (`--work` to change), which it deletes first. A
 step that another step depends on is skipped when the dependency failed, and with
