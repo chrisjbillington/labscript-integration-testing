@@ -1,0 +1,101 @@
+name: Screenshots
+run-name: Screenshots of ${{ inputs.after || 'the default branches' }}
+
+# Takes images of the main windows of BLACS, runmanager, lyse and runviewer on Windows,
+# with example data, for each Qt binding and in the light and dark colour schemes: a
+# "before" set with the default branches or the refs in `before`, with the platform's
+# default Qt style and with Fusion, and an "after" set with the refs in `after`. See
+# screenshots/README.md.
+
+on:
+  workflow_dispatch:
+    inputs:
+      before:
+        description: 'Component refs of the before set, as for test.yml (empty for the default branches)'
+        default: ''
+      after:
+        description: 'Component refs of the after set, as for test.yml'
+        default: ''
+      after_styles:
+        description: 'Qt styles of the after set: default, fusion or both'
+        default: 'default fusion'
+      qts:
+        description: 'JSON list of Qt bindings'
+        default: '["PySide6", "PyQt6", "PyQt5"]'
+      python:
+        description: 'Python version'
+        default: '3.14'
+
+env:
+  BEFORE: ${{ inputs.before }}
+  AFTER: ${{ inputs.after }}
+  AFTER_STYLES: ${{ inputs.after_styles }}
+  PYTHON: ${{ inputs.python }}
+
+jobs:
+  screenshots:
+    name: ${{ matrix.set }} ${{ matrix.qt }}
+    runs-on: windows-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        set: [before, after]
+        qt: ${{ fromJSON(inputs.qts) }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON }}
+
+      - name: Set the display resolution
+        shell: pwsh
+        continue-on-error: true
+        run: |
+          Set-DisplayResolution -Width 1920 -Height 1080 -Force
+          Get-CimInstance Win32_VideoController | Select-Object Name, CurrentHorizontalResolution, CurrentVerticalResolution
+
+      - name: Install uv
+        run: python -m pip install -q uv
+
+      - name: Clone the components
+        run: |
+          if [ "${{ matrix.set }}" = before ]; then refs="$BEFORE"; else refs="$AFTER"; fi
+          python harness/suite.py clone --repos-dir repos $refs
+
+      - name: Install the components
+        run: |
+          python harness/suite.py install --repos-dir repos --venv venv --qt ${{ matrix.qt }} \
+            --python "$(python -c 'import sys; print(sys.executable)')"
+
+      - name: Make the profile and the example data
+        run: venv/Scripts/python screenshots/prepare.py "$RUNNER_TEMP/shared_drive"
+
+      - name: Take the images
+        run: |
+          if [ "${{ matrix.set }}" = before ]; then styles="default fusion"; else styles="$AFTER_STYLES"; fi
+          style_args=()
+          for style in $styles; do
+            style_args+=(--style "$style")
+          done
+          # Qt 5 has a dark palette only when Windows is in dark mode.
+          for scheme in light dark; do
+            if [ $scheme = dark ]; then light=0; else light=1; fi
+            reg add 'HKCU\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize' \
+              //v AppsUseLightTheme //t REG_DWORD //d $light //f
+            python screenshots/run_all.py --data "$RUNNER_TEMP/shared_drive/screenshots.json" \
+              --out "out/${{ matrix.set }}" --venv ${{ matrix.qt }}=venv --scheme $scheme \
+              "${style_args[@]}"
+          done
+          ls out/${{ matrix.set }}
+
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: screenshots-${{ matrix.set }}-${{ matrix.qt }}
+          path: out
+          if-no-files-found: ignore
