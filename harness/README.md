@@ -115,14 +115,16 @@ the `apps` and `blacs-shot` steps fail if a suite application is already running
 machine.
 
 On a Linux machine that has a real profile and running suite servers, the harness can run
-in a user, mount and network namespace instead, with a scratch directory as the home of
-the mapped root user, so that the profile goes to that directory and the ports are
-separate. The profile path comes from the user name, so `LOGNAME` and `USER` are set to
-`root`:
+in a user, mount, network and PID namespace instead, with a scratch directory as the
+home of the mapped root user, so that the profile goes to that directory and the ports
+are separate. The profile path comes from the user name, so `LOGNAME` and `USER` are set
+to `root`. The harness does not end the zlock and zlog servers that the applications
+start. In a PID namespace the kernel kills them when the command exits; without one,
+every run leaves two servers running:
 
 ```
 mkdir -p /tmp/fakeroot
-env -u DISPLAY -u WAYLAND_DISPLAY unshare -Urmn sh -c 'ip link set lo up \
+env -u DISPLAY -u WAYLAND_DISPLAY unshare -Urmnp --fork sh -c 'ip link set lo up \
     && mount --bind /tmp/fakeroot /root && export HOME=/root LOGNAME=root USER=root \
     && python harness/suite.py test --python 3.14 --work /tmp/harness-work'
 ```
