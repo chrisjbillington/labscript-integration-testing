@@ -8,7 +8,7 @@ public entry points.
 | Path | What it is |
 |---|---|
 | `harness/` | The test harness: clones the components, installs them into a virtual environment and runs the checks; `harness/README.md` describes the checks and the options |
-| `.github/workflows/test.yml` | Runs the harness on Ubuntu and Windows for Python 3.11 to 3.14 with PySide6, PyQt6 and PyQt5: on pushes that change the harness, weekly (also with Python 3.15), and on demand with chosen component refs |
+| `.github/workflows/test.yml` | Runs the harness on Ubuntu and Windows for Python 3.11 to 3.14 with PySide6, PyQt6 and PyQt5: weekly (also with Python 3.15), and on demand with chosen component refs |
 
 To test pull requests, dispatch the workflow with their refs:
 

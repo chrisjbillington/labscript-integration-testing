@@ -10,8 +10,7 @@ installs on Windows runners are slow, and conda-specific checks are left until a
 is close.
 
 The GitHub Actions workflow `.github/workflows/test.yml` runs the harness on Ubuntu and
-Windows for Python 3.11 to 3.14 with PySide6, PyQt6 and PyQt5 on every push that changes
-the harness, weekly, and on demand with chosen component refs, Qt bindings, Pythons and
+Windows for Python 3.11 to 3.14 with PySide6, PyQt6 and PyQt5 weekly and on demand with chosen component refs, Qt bindings, Pythons and
 runners. The weekly run also tests Python 3.15, and its 3.15 jobs may fail. A dispatch
 with the same inputs as a queued or running dispatch cancels the jobs of that run.
 

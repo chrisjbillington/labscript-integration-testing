@@ -9,10 +9,6 @@ run-name: ${{ github.event_name == 'workflow_dispatch' && format('Test {0}', inp
 # the matrix of the weekly run only, where its jobs may fail.
 
 on:
-  push:
-    paths:
-      - 'harness/**'
-      - '.github/workflows/test.yml'
   schedule:
     - cron: '17 3 * * 1'
   workflow_dispatch:
