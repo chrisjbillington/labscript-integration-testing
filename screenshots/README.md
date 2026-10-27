@@ -36,9 +36,8 @@ with named outputs), the compiled connection table, a globals file with three gr
 twelve shots of `fixture/sequence.py` (a time-of-flight scan over two MOT load times)
 with a run time, and the four analysis routines of `fixture/` in the analysislib. Two
 globals of the `imaging` group cannot be evaluated; they are added after the shots are
-compiled. It
-writes the paths to `SHARED_DRIVE/screenshots.json`. It deletes and remakes
-`~/labscript-suite` and SHARED_DRIVE, and refuses to run if `~/labscript-suite` was not
+compiled. It writes the paths to `SHARED_DRIVE/screenshots.json`. It deletes and
+remakes `~/labscript-suite` and SHARED_DRIVE, and refuses to run if `~/labscript-suite` was not
 made by the harness or by `prepare.py`, or if SHARED_DRIVE is not empty and was not made
 by `prepare.py`. Give it a new scratch directory as SHARED_DRIVE, never a directory with
 real shots.
