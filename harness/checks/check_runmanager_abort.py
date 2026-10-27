@@ -67,8 +67,17 @@ def run():
     app.open_globals_file(globals_file)
     app.open_group(globals_file, 'g')
     app.get_group_item_by_name(globals_file, 'g', app.GROUPS_COL_ACTIVE).setCheckState(QtCore.Qt.Checked)
-    wait(3)
     tab = app.currently_open_groups[globals_file, 'g']
+
+    def parsed():
+        """Whether runmanager has no pre-parse of the globals pending and has set the
+        automatic expansion of n, which gives three shots"""
+        return (app.preparse_globals_required.unfinished_tasks == 0
+                and app.ui.pushButton_engage.isEnabled()
+                and app.ui.pushButton_engage.text() == 'Engage (3 shots)')
+
+    check(wait(0, parsed, limit=60),
+          f'start-up: the globals are parsed with n expanded ({app.ui.pushButton_engage.text()!r})')
 
     def output():
         return app.output_box.output_textedit.toPlainText()
@@ -76,7 +85,7 @@ def run():
     def set_mode(mode):
         tab.change_global_value('mode', tab.get_global_item_by_name('mode', tab.GLOBALS_COL_VALUE).text(),
                                 repr(mode), interactive=False)
-        wait(1.5)
+        wait(0, parsed, limit=60)
 
     def idle():
         return app.compile_queue.empty() and not app.ui.pushButton_abort.isEnabled()
