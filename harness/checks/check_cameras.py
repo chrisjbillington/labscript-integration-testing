@@ -1,11 +1,13 @@
 """Compile a shot with the cameras of fixtures/cameras/experiment.py and run their BLACS
 workers in this process: a shot, whose images are saved to the shot file, a snap, the
-attributes text and continuous acquisition. The mock camera of each camera package
-returns 500 x 500 images. The DummyCamera's images are the values of its functions. The
-GenICamCamera runs with the simulated GenTL producer of the genicam package, if harvesters
-is installed. On Linux, the IMAQdxCamera without mock runs in a second process with stub
-NI-IMAQdx and NI Vision libraries built from fixtures/cameras/imaqdx_stub, which check
-the ctypes declarations, the attribute types and that every allocation is disposed."""
+attributes text and continuous acquisition. The image group has the attribute mock_data,
+which is true for the mock cameras and the DummyCamera. The mock camera of each camera
+package returns 500 x 500 images. The DummyCamera's images are the values of its
+functions. The GenICamCamera runs with the simulated GenTL producer of the genicam
+package, if harvesters is installed. On Linux, the IMAQdxCamera without mock runs in a
+second process with stub NI-IMAQdx and NI Vision libraries built from
+fixtures/cameras/imaqdx_stub, which check the ctypes declarations, the attribute types and
+that every allocation is disposed."""
 
 import ctypes
 import json
@@ -99,10 +101,11 @@ def wait_for(condition, timeout=10):
     return False
 
 
-def run_worker(name, receiver):
+def run_worker(name, receiver, mock_data):
     """Run the camera's worker through a shot, a snap, the attributes text and continuous
-    acquisition. Return the saved images, as {frametype: array}, and the attributes of the
-    image group, or None if the worker failed."""
+    acquisition. Check that the image group has the attribute mock_data with the given
+    value. Return the saved images, as {frametype: array}, and the attributes of the image
+    group, or None if the worker failed."""
     worker, ok = attempt(f'{name}: the worker starts', make_worker, name, receiver)
     if not ok:
         return None
@@ -132,6 +135,9 @@ def run_worker(name, receiver):
             return None
         check(group.attrs.get('camera') == name and not group.attrs['failed_shot'],
               f'{name}: images/{orientation} has camera {name!r} and failed_shot false')
+        check(group.attrs.get('mock_data') is np.bool_(mock_data),
+              f'{name}: images/{orientation} has mock_data {mock_data}',
+              known=None if mock_data_saved() else 'labscript-devices triggerable-camera branch')
         images = {frametype: dataset[:] for frametype, dataset in group['harness'].items()}
         for frametype, image in images.items():
             check(image.dtype == np.uint16, f'{name}: {frametype} image is uint16')
@@ -144,6 +150,15 @@ def pylon_mock_fixed():
     from labscript_devices.PylonCamera.blacs_workers import PylonCameraWorker
 
     return 'self.mock' in inspect.getsource(PylonCameraWorker.get_attributes_as_dict)
+
+
+def mock_data_saved():
+    """Whether the worker saves the attribute mock_data"""
+    try:
+        from labscript_devices.common.triggerable_camera.blacs_workers import CameraInterface
+    except ImportError:
+        return False
+    return hasattr(CameraInterface, 'mock_data')
 
 
 def compile_shot():
@@ -162,7 +177,7 @@ def check_dummy(receiver):
     if not check(present, 'the installed labscript-devices has DummyCamera',
                  known='labscript-devices dummy-camera branch'):
         return
-    result = run_worker('dummy', receiver)
+    result = run_worker('dummy', receiver, True)
     if result is None:
         return
     images, _ = result
@@ -190,7 +205,7 @@ def check_genicam(receiver):
     if not check(present, 'the installed labscript-devices has GenICamCamera',
                  known='labscript-devices genicam-camera branch'):
         return
-    result = run_worker('genicam', receiver)
+    result = run_worker('genicam', receiver, False)
     if result is None:
         return
     images, attrs = result
@@ -229,7 +244,7 @@ def check_imaqdx_stub(receiver):
     if not check(imaqdx is not None, 'the installed labscript-devices has the imaqdx module',
                  known='labscript-devices imaqdx-ctypes branch'):
         return
-    result = run_worker('imaqdx_stub', receiver)
+    result = run_worker('imaqdx_stub', receiver, False)
     check(nivision.stub_live_allocations() == 0,
           f'imaqdx_stub: every NI Vision allocation is disposed '
           f'({nivision.stub_live_allocations()} not disposed)')
@@ -309,7 +324,7 @@ try:
             check(False, 'pylon_mock: the worker saves the attributes of the mock camera',
                   known='labscript-devices triggerable-camera branch')
             continue
-        result = run_worker(name, receiver)
+        result = run_worker(name, receiver, True)
         if result is not None:
             images, _ = result
             check(set(images) == {'first', 'second'}
