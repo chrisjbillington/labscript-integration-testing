@@ -37,15 +37,27 @@ on:
         type: boolean
         default: false
 
-# A dispatch with the same inputs as a queued or running dispatch cancels that run.
-concurrency:
-  group: ${{ github.workflow }} ${{ github.event_name }} ${{ inputs.refs }} ${{ inputs.pins }} ${{ inputs.oses }} ${{ inputs.pythons }} ${{ inputs.qts }} ${{ inputs.all_steps }}
-  cancel-in-progress: true
-
 jobs:
+  # A hash of the event name and the inputs for the concurrency groups of the test jobs,
+  # since a concurrency group is limited to 400 characters.
+  key:
+    runs-on: ubuntu-latest
+    outputs:
+      hash: ${{ steps.hash.outputs.hash }}
+    steps:
+      - id: hash
+        env:
+          KEY: ${{ github.event_name }} ${{ toJSON(inputs) }}
+        run: echo "hash=$(printf '%s' "$KEY" | sha256sum | cut -c1-16)" >> "$GITHUB_OUTPUT"
+
   test:
     name: ${{ matrix.os }} py${{ matrix.python }} ${{ matrix.qt }} ${{ matrix.pins }}
+    needs: key
     runs-on: ${{ matrix.os }}
+    # A dispatch with the same inputs as a queued or running dispatch cancels its jobs.
+    concurrency:
+      group: ${{ github.workflow }} ${{ needs.key.outputs.hash }} ${{ matrix.os }} ${{ matrix.python }} ${{ matrix.qt }} ${{ matrix.pins }}
+      cancel-in-progress: true
     timeout-minutes: 60
     continue-on-error: ${{ matrix.python == '3.15' }}
     strategy:
