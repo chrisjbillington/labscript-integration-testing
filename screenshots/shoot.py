@@ -68,6 +68,9 @@ parser.add_argument('--scheme', choices=['system', 'light', 'dark'], required=Tr
 parser.add_argument('--data', required=True)
 parser.add_argument('--out', required=True)
 parser.add_argument('--size', help='main window size in pixels, WxH')
+parser.add_argument('--switch-scheme', action='store_true',
+                    help='start with the other colour scheme and switch to --scheme once '
+                    'the example data is loaded')
 args = parser.parse_args()
 sys.argv = [args.app]
 data = json.loads(Path(args.data).read_text())
@@ -84,6 +87,9 @@ if QT_ENV == 'PyQt5' and sys.platform == 'win32':
 from qtutils.qt import QtCore, QtGui, QtWidgets, QT_ENV  # noqa: E402
 
 BaseQApplication = QtWidgets.QApplication
+SCHEMES = {}
+if hasattr(QtCore.Qt, 'ColorScheme'):
+    SCHEMES = {'light': QtCore.Qt.ColorScheme.Light, 'dark': QtCore.Qt.ColorScheme.Dark}
 Checked = QtCore.Qt.CheckState.Checked
 
 
@@ -243,6 +249,14 @@ def save(window, active):
         'window_colour': window_colour.name(),
         'window_is_dark': window_colour.lightness() < 128,
         'window_active': active,
+        'scheme_switched': args.switch_scheme,
+        # The base colour of each check box, which Fusion fills its indicator with:
+        'check_box_base_colours': {
+            box.objectName() or box.text(): box.palette().color(
+                QtGui.QPalette.ColorGroup.Active, QtGui.QPalette.ColorRole.Base
+            ).name()
+            for box in window.findChildren(QtWidgets.QCheckBox)
+        },
         'device_pixel_ratio': window.devicePixelRatioF(),
         'font': qapp.font().toString(),
     }
@@ -289,12 +303,19 @@ def take_screenshot():
     # The mouse pointer does not highlight the widgets under it:
     window.setWindowFlag(QtCore.Qt.WindowType.WindowTransparentForInput)
     window.showNormal()
-    use_active_colours()
+    if not args.switch_scheme:
+        # Once the application palette is set, Qt no longer installs the palettes of the
+        # platform theme for widget classes when the colour scheme changes.
+        use_active_colours()
     window.resize(width, height)
     settle()
     SETUP[args.app](app)
     window.resize(width, height)
     settle(lambda: (window.width(), window.height()) == (width, height))
+    if args.switch_scheme:
+        hints = QtWidgets.QApplication.instance().styleHints()
+        hints.setColorScheme(SCHEMES[args.scheme])
+        settle(lambda: hints.colorScheme() == SCHEMES[args.scheme])
     # The applications run at the same time, and each makes its window active before its
     # image is taken. A lock file in the output directory makes them do this in turn.
     # We wait at most ACTIVATION_TIMEOUT for the lock and for the window to be active.
@@ -336,8 +357,10 @@ class QApplication(BaseQApplication):
         if args.style == 'fusion':
             self.setStyle(QtWidgets.QStyleFactory.create('Fusion'))
         if args.scheme != 'system' and hasattr(self.styleHints(), 'setColorScheme'):
-            scheme = {'light': QtCore.Qt.ColorScheme.Light, 'dark': QtCore.Qt.ColorScheme.Dark}
-            self.styleHints().setColorScheme(scheme[args.scheme])
+            scheme = args.scheme
+            if args.switch_scheme:
+                scheme = {'light': 'dark', 'dark': 'light'}[scheme]
+            self.styleHints().setColorScheme(SCHEMES[scheme])
         # Text cursors are shown without blinking:
         self.setCursorFlashTime(0)
         global poll

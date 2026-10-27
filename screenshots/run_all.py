@@ -37,6 +37,9 @@ parser.add_argument('--app', action='append', choices=APPS)
 parser.add_argument('--style', action='append', choices=STYLES)
 parser.add_argument('--scheme', action='append', choices=SCHEMES)
 parser.add_argument('--offscreen', action='store_true')
+parser.add_argument('--switch-scheme', action='store_true',
+                    help='start each application with the other colour scheme and switch '
+                    'to the given one once the example data is loaded')
 args = parser.parse_args()
 if args.offscreen and 'dark' in (args.scheme or []):
     parser.error('the offscreen platform has no dark colour scheme')
@@ -87,6 +90,8 @@ def group_running(pgid):
 
 def shoot(app, binding, venv, style, scheme):
     name = f'{app}-{binding}-{style}-{scheme}'
+    if args.switch_scheme:
+        name += '-switched'
     image = out / f'{name}.png'
     info = image.with_suffix('.json')
     info.unlink(missing_ok=True)
@@ -94,6 +99,7 @@ def shoot(app, binding, venv, style, scheme):
     cmd = [
         python(venv), '-X', 'utf8', str(HERE / 'shoot.py'), app, '--style', style,
         '--scheme', scheme, '--data', str(data_file), '--out', str(image),
+        *(['--switch-scheme'] if args.switch_scheme else []),
     ]
     env = dict(os.environ, QT_ENV=binding, LABSCRIPT_DISABLE_GRAPHICAL_EXCEPTHOOK='1',
                PYTHONPATH=str(HERE / 'fixture'))
@@ -122,6 +128,9 @@ def shoot_all(app):
     for (binding, venv), style, scheme in itertools.product(
         venvs.items(), args.style or STYLES, schemes
     ):
+        if binding == 'PyQt5' and args.switch_scheme:
+            # Qt 5 has no colour scheme API.
+            continue
         if binding == 'PyQt5' and scheme == 'dark' and sys.platform != 'win32':
             # Qt 5 has no colour scheme API, and its dark palette option is Windows-only.
             continue

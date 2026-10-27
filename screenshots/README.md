@@ -45,7 +45,11 @@ real shots.
 PyQt6=PATH --venv PyQt5=PATH` runs `shoot.py` once per combination and writes
 `DIR/<app>-<binding>-<style>-<scheme>.png` with a JSON file of the binding, the Qt
 version, the platform, the style, the application font and the resulting window colour.
-`--app`, `--style` and `--scheme` restrict the combinations. The four applications run
+`--app`, `--style` and `--scheme` restrict the combinations. With `--switch-scheme`, each application starts
+with the other colour scheme and switches to the given one once the example data is
+loaded, which shows how the application handles a change of colour scheme while it runs;
+the images are named `...-switched.png`, and PyQt5 is skipped. The JSON file records the
+base colour of each check box. The four applications run
 at the same time, each through its combinations in turn. The profile is used by all
 venvs, so one `prepare.py` serves the images of several sets of venvs, for example
 before and after a change.

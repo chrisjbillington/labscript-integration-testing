@@ -25,6 +25,10 @@ on:
       python:
         description: 'Python version'
         default: '3.14'
+      switch_scheme:
+        description: 'Start each application with the other colour scheme and switch once the data is loaded'
+        type: boolean
+        default: false
 
 env:
   BEFORE: ${{ inputs.before }}
@@ -89,7 +93,7 @@ jobs:
               //v AppsUseLightTheme //t REG_DWORD //d $light //f
             python screenshots/run_all.py --data "$RUNNER_TEMP/shared_drive/screenshots.json" \
               --out "out/${{ matrix.set }}" --venv ${{ matrix.qt }}=venv --scheme $scheme \
-              "${style_args[@]}"
+              "${style_args[@]}" ${{ inputs.switch_scheme && '--switch-scheme' || '' }}
           done
           ls out/${{ matrix.set }}
 
