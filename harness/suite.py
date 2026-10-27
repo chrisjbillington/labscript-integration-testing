@@ -142,10 +142,16 @@ def rev_parse(dest, rev):
                           capture_output=True, text=True, check=True).stdout.strip()
 
 
-def merge_pull_requests(dest, numbers, base_ref):
-    """Check out `base_ref` with the heads of the pull requests `numbers` merged into it
-    in turn, and return (base commit, {'pr/<N>': head commit}). The histories are fetched
-    in full so that the merge bases are available."""
+def ref_label(upstream, repo, ref):
+    """`ref`, prefixed with `repo@` if `repo` is not the component's `upstream` repo."""
+    return ref if repo.lower() == upstream.lower() else f'{repo}@{ref}'
+
+
+def merge_refs(dest, upstream, refs, base_ref):
+    """Check out `base_ref` with the refs `refs`, a list of (owner/repo, ref), merged into
+    it in turn, and return (base commit, {label: head commit}). A ref `pr/<N>` is the head
+    of pull request N. The histories are fetched in full so that the merge bases are
+    available."""
     shallow = subprocess.run(['git', '-C', str(dest), 'rev-parse', '--is-shallow-repository'],
                              capture_output=True, text=True).stdout.strip() == 'true'
     unshallow = ['--unshallow'] if shallow else []
@@ -153,16 +159,18 @@ def merge_pull_requests(dest, numbers, base_ref):
     run(['git', '-C', dest, 'checkout', '-q', '--detach', 'FETCH_HEAD'], check=True)
     base = rev_parse(dest, 'HEAD')
     heads = {}
-    for number in numbers:
-        run(['git', '-C', dest, 'fetch', '-q', 'origin', f'refs/pull/{number}/head'], check=True)
+    for repo, ref in refs:
+        label = ref_label(upstream, repo, ref)
+        fetch_ref = f'refs/pull/{ref[3:]}/head' if ref.startswith('pr/') else ref
+        run(['git', '-C', dest, 'fetch', '-q', f'https://github.com/{repo}', fetch_ref], check=True)
         head = rev_parse(dest, 'FETCH_HEAD')
         merged = run(['git', '-C', dest, '-c', 'user.name=harness', '-c', 'user.email=harness@localhost',
                       'merge', '-q', '--no-edit', head])
         if merged.returncode:
             run(['git', '-C', dest, 'merge', '--abort'])
             onto = ' and '.join([base_ref] + list(heads))
-            raise SystemExit(f'{dest.name}: pull request {number} conflicts with {onto}')
-        heads[f'pr/{number}'] = head
+            raise SystemExit(f'{dest.name}: {label} conflicts with {onto}')
+        heads[label] = head
     return base, heads
 
 
@@ -203,19 +211,16 @@ def cmd_clone(args):
     for name, (repo, default_ref) in COMPONENTS.items():
         dest = repos_dir / name
         if name in specs:
-            repo = specs[name][0][0]
-            refs = [ref for _, ref in specs[name]]
-            if len(refs) > 1 and not (all(r == repo for r, _ in specs[name])
-                                      and all(ref.startswith('pr/') for ref in refs)):
-                raise SystemExit(f'{name}: several refs are given, so they must all be pr/<N> '
-                                 f'of one repository')
+            refs = specs[name]
+            if len(refs) == 1:
+                repo = refs[0][0]
         elif (dest / '.git').exists() and local_work(dest, default_ref):
             head = rev_parse(dest, 'HEAD')
             log(f'{name}: using existing clone at {head[:10]} ({local_work(dest, default_ref)})')
             manifest[name] = {'repo': None, 'ref': None, 'commit': head}
             continue
         else:
-            refs = [default_ref]
+            refs = [(repo, default_ref)]
         url = f'https://github.com/{repo}'
         fresh = not (dest / '.git').exists()
         if fresh:
@@ -224,15 +229,15 @@ def cmd_clone(args):
             run(['git', '-C', dest, 'remote', 'add', 'origin', url], check=True)
         elif origin_repo(dest) != repo.lower():
             run(['git', '-C', dest, 'remote', 'set-url', 'origin', url], check=True)
-        if refs[0].startswith('pr/'):
-            base, pr_heads = merge_pull_requests(dest, [ref[3:] for ref in refs], default_ref)
+        if len(refs) > 1 or refs[0][1].startswith('pr/'):
+            base, heads = merge_refs(dest, repo, refs, default_ref)
             head = rev_parse(dest, 'HEAD')
-            manifest[name] = {'repo': repo, 'ref': ' '.join(refs), 'commit': head, 'base': base,
-                              'heads': pr_heads}
-            log(f'{name}: {repo} {describe_heads(pr_heads)} merged into {default_ref} '
+            manifest[name] = {'repo': repo, 'ref': ' '.join(heads), 'commit': head, 'base': base,
+                              'heads': heads}
+            log(f'{name}: {repo} {describe_heads(heads)} merged into {default_ref} '
                 f'{base[:10]} as {head[:10]}')
         else:
-            ref, = refs
+            (_, ref), = refs
             shallow = subprocess.run(['git', '-C', str(dest), 'rev-parse', '--is-shallow-repository'],
                                      capture_output=True, text=True).stdout.strip() == 'true'
             depth = ['--depth', '1'] if fresh or shallow else []
@@ -481,7 +486,7 @@ def main():
     p.add_argument('--repos-dir', default=default_repos_dir())
     p.add_argument('spec', nargs='*',
                    help='name=[owner/repo@]ref, ref a branch, tag, commit or pr/N; '
-                        'several pr/N for one name are merged in turn')
+                        'several refs for one name are merged in turn')
     p.set_defaults(func=cmd_clone)
 
     p = sub.add_parser('install', help='make a virtual environment and install the components')

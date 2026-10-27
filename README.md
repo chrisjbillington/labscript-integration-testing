@@ -18,6 +18,7 @@ gh workflow run test.yml -R chrisjbillington/labscript-integration-testing \
 ```
 
 `name=pr/N` tests pull request N merged into the current default branch of the
-component, and several `name=pr/N` refs for one component are merged in turn.
-`name=owner/repo@branch` tests a branch of any fork. The workflow's other inputs select
+component. `name=owner/repo@branch` tests a branch of any fork. Several refs for one
+component, of pull requests or branches, are merged in turn into its current default
+branch. The workflow's other inputs select
 the runners, Python versions, Qt bindings and extra pip requirements.

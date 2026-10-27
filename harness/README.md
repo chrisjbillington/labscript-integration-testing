@@ -29,11 +29,12 @@ branch checked out, in which case the clone is used as it is. A ref is a branch,
 example `labscript=pr/124` or `zprocess=chrisjbillington/zprocess@fix-conpty`. `pr/<N>`
 is the head of pull request N merged by `clone` into the current tip of the component's
 default branch, so the result is the code that merging would produce; if the merge
-conflicts, `clone` stops with a message. Several `pr/<N>` refs for one component, for
-example `lyse=pr/157 lyse=pr/161`, are merged in turn in the order given. The resolved
-commits, and for `pr/<N>` refs the pull request heads and the default branch commit
-that they were merged into, are written to `repos/manifest.json` and appear in the
-report.
+conflicts, `clone` stops with a message. Several refs for one component, for example
+`lyse=pr/157 lyse=pr/161 lyse=chrisjbillington/lyse@fix-plot`, are merged in turn in the
+order given into the current tip of the default branch of the component's upstream
+repository. The resolved commits, and for merged refs their heads and the default
+branch commit that they were merged into, are written to `repos/manifest.json` and
+appear in the report.
 
 `install` makes `harness/venvs/py<version>` with uv (`--venv` to change) and installs
 every component from its clone in one resolver run, with the Qt binding and any pins.
