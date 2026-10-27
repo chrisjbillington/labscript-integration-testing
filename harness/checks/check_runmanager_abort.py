@@ -46,15 +46,7 @@ def wait(seconds, condition=lambda: True, limit=120):
     return True
 
 
-def main_window():
-    for w in QtWidgets.QApplication.topLevelWidgets():
-        if isinstance(w, QtWidgets.QMainWindow) and w.isVisible():
-            return w
-    return None
-
-
 def run():
-    poll.stop()
     rm = sys.modules['__main__']
     app = rm.app
     from runmanager import group_manager as gm
@@ -128,6 +120,10 @@ def run():
         app.ui.pushButton_abort.click()
         stopped = wait(0, idle, limit=1 + SLACK)
         dt = time.monotonic() - t0
+        # Text written to the output box is displayed by its thread, which can be after the
+        # Abort button is disabled:
+        wait(0, lambda: all(s in output()[start:] for s in ['Compilation interrupted', 'Compilation aborted']),
+             limit=5)
         text = output()[start:]
         check(stopped, f'{name}: the compilation stops within {1 + SLACK} s ({dt:.2f} s)', known=KNOWN)
         check('Compilation interrupted' in text and 'Compilation aborted' in text,
@@ -167,24 +163,21 @@ def run():
     QtWidgets.QApplication.instance().exit(0)
 
 
-def check_ready():
-    rm = sys.modules.get('__main__')
-    if getattr(rm, 'app', None) is not None and main_window() is not None:
-        try:
-            run()
-        except Exception:
-            traceback.print_exc()
-            check(False, 'the checks ran without an exception')
-            QtWidgets.QApplication.instance().exit(1)
+def start():
+    try:
+        run()
+    except Exception:
+        traceback.print_exc()
+        check(False, 'the checks ran without an exception')
+        QtWidgets.QApplication.instance().exit(1)
 
 
 class QApplication(BaseQApplication):
-    def __init__(self, *a, **kw):
-        super().__init__(*a, **kw)
-        global poll
-        poll = QtCore.QTimer()
-        poll.timeout.connect(check_ready)
-        poll.start(500)
+    def exec(self):
+        # The checks start in the event loop. runmanager processes events before it calls
+        # exec(), and exit() called from those has no effect.
+        QtCore.QTimer.singleShot(0, start)
+        return super().exec()
 
 
 QtWidgets.QApplication = QApplication
