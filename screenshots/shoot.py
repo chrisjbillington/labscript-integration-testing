@@ -264,6 +264,22 @@ def use_active_colours():
     qapp.setPalette(palette)
 
 
+def activate(window):
+    """Make the window the active window. Windows lets a process activate one of its
+    windows only while it handles input, so on Windows we send a key press of the Alt
+    key first."""
+    window.raise_()
+    if sys.platform == 'win32':
+        import ctypes
+
+        VK_MENU, KEYEVENTF_KEYUP = 0x12, 0x2
+        user32 = ctypes.windll.user32
+        user32.keybd_event(VK_MENU, 0, 0, 0)
+        user32.SetForegroundWindow(int(window.winId()))
+        user32.keybd_event(VK_MENU, 0, KEYEVENTF_KEYUP, 0)
+    window.activateWindow()
+
+
 def take_screenshot():
     poll.stop()
     app = app_object()
@@ -271,8 +287,7 @@ def take_screenshot():
     # The mouse pointer does not highlight the widgets under it:
     window.setWindowFlag(QtCore.Qt.WindowType.WindowTransparentForInput)
     window.showNormal()
-    window.raise_()
-    window.activateWindow()
+    activate(window)
     use_active_colours()
     window.resize(width, height)
     settle()
