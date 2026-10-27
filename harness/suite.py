@@ -42,6 +42,7 @@ COMPONENTS = {
     'blacs': ('labscript-suite/blacs', 'master'),
     'lyse': ('labscript-suite/lyse', 'master'),
     'runviewer': ('labscript-suite/runviewer', 'master'),
+    'spinapi': ('chrisjbillington/spinapi', 'master'),
     'labscript-devices': ('labscript-suite/labscript-devices', 'master'),
     'labscript-suite': ('labscript-suite/labscript-suite', 'master'),
 }

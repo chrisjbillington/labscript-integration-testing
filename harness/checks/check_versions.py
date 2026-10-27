@@ -22,7 +22,7 @@ print()
 
 components = ['zprocess', 'qtutils', 'desktop-app', 'labscript-c-extensions',
               'labscript-utils', 'labscript', 'runmanager', 'blacs', 'lyse', 'runviewer',
-              'labscript-devices', 'labscript-suite']
+              'spinapi', 'labscript-devices', 'labscript-suite']
 for dist in components:
     try:
         version = importlib.metadata.version(dist)

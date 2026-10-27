@@ -28,6 +28,7 @@ MODULES = [
     'labscript_utils.qtwidgets.headerview_with_widgets',
     'labscript',
     'labscript.functions',
+    'spinapi',
     'labscript_devices',
     'labscript_devices.DummyPseudoclock.labscript_devices',
     'labscript_devices.DummyPseudoclock.blacs_tabs',
