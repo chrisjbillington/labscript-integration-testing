@@ -1,6 +1,6 @@
-"""Run shots through BLACS with the profile's dummy devices. Start lyse and BLACS, submit
-a copy of the example shot to BLACS as runmanager does, and check that BLACS runs it and
-sends it to lyse. The first shot is submitted as soon as BLACS listens on its port. Submit the same file again, which BLACS runs as a repeat in
+"""Run shots through BLACS with the profile's dummy devices and mock camera. Start lyse
+and BLACS, submit a copy of the example shot to BLACS as runmanager does, and check that
+BLACS runs it, the camera saves its images, and BLACS sends the shot to lyse. The first shot is submitted as soon as BLACS listens on its port. Submit the same file again, which BLACS runs as a repeat in
 a new file.
 Check the output of both applications for tracebacks, and BLACS.log for errors."""
 
@@ -93,6 +93,16 @@ def check_run(path):
         attrs = dict(f['data/function_runner'].attrs) if 'data/function_runner' in f else {}
         check(attrs == {'start': 'start function ran', 'stop': 'stop function ran'},
               f'{path.name}: the FunctionRunner start and stop functions ran: {attrs}')
+        group = f.get('images/side')
+        check(group is not None and group.attrs.get('camera') == 'camera'
+              and not group.attrs.get('failed_shot', True),
+              f'{path.name}: the mock camera saved its images in images/side with '
+              f'failed_shot false')
+        for frametype in ['first', 'second']:
+            dataset = f.get(f'images/side/harness/{frametype}')
+            check(dataset is not None and dataset.shape == (500, 500) and dataset.dtype == 'uint16'
+                  and dataset.attrs.get('CLASS') == b'IMAGE',
+                  f'{path.name}: images/side/harness/{frametype} is a 500 x 500 uint16 image')
 
 
 def run_shots():

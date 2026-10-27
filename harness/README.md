@@ -5,7 +5,8 @@ installs the component repositories into a virtual environment and checks that e
 module imports, that a profile can be created, that the example experiment compiles,
 that the shot can be read in lyse and by the runviewer parsers, that the runmanager
 library API works, that the four applications start, that their icons have high-DPI
-images and that BLACS runs shots with dummy devices and sends them to lyse. It uses pip
+images, that BLACS runs shots with dummy devices and a mock camera and sends them to
+lyse, and that the camera workers save their images. It uses pip
 and uv only. Conda is not used: conda installs on Windows runners are slow, and
 conda-specific checks are left until a release is close.
 
@@ -39,7 +40,8 @@ branch commit that they were merged into, are written to `repos/manifest.json` a
 appear in the report.
 
 `install` makes `harness/venvs/py<version>` with uv (`--venv` to change) and installs
-every component from its clone in one resolver run, with the Qt binding and any pins.
+every component from its clone in one resolver run, with the Qt binding, harvesters for
+the `cameras` step (except on Python 3.15, for which genicam has no wheels) and any pins.
 PySide6 is installed as `PySide6<6.12`: PySide6 6.12.0 crashes lyse
 ([PYSIDE-3500](https://qt-project.atlassian.net/browse/PYSIDE-3500), and on Python 3.11
 [PYSIDE-3474](https://qt-project.atlassian.net/browse/PYSIDE-3474)). PySide6 6.11 does not support Python 3.15, so the workflow has no PySide6
@@ -88,9 +90,9 @@ error window. labscript-utils releases before 3.5.0 ignore the variable.
 | Step | What it checks |
 |---|---|
 | `versions` | Python, dependency and component versions; every component is installed |
-| `profile` | `labscript-profile-create` makes a profile; the labconfig points `shared_drive` at the work directory; a FunctionRunner from `fixtures/function_runner` is added to the example connection table and experiment, with one function at the start and one at the stop of the shot; the runmanager test fixtures are copied into `userlib/labscriptlib/runmanager_test` |
+| `profile` | `labscript-profile-create` makes a profile; the labconfig points `shared_drive` at the work directory; a FunctionRunner from `fixtures/function_runner` is added to the example connection table and experiment, with one function at the start and one at the stop of the shot, and an `IMAQdxCamera` with `mock=True` from `fixtures/cameras`, with two exposures; the runmanager test fixtures are copied into `userlib/labscriptlib/runmanager_test` |
 | `imports` | Every top-level module and the Qt-dependent modules import in a fresh interpreter with `-W error::DeprecationWarning`; the application entry modules byte-compile |
-| `compile` | The profile's connection table and `example_experiment.py` compile through `runmanager.compile_labscript_async`; the shot file has the expected groups, devices, connection table rows, time markers and stop time, and the FunctionRunner's two functions with their whole source |
+| `compile` | The profile's connection table and `example_experiment.py` compile through `runmanager.compile_labscript_async`; the shot file has the expected groups, devices, connection table rows, time markers and stop time, the FunctionRunner's two functions with their whole source, and the camera's exposures |
 | `lyse` | `lyse.Run` reads globals, saves and reads back results and arrays; `get_dataframe_from_shot` and `get_dataframe_from_shots` return the results |
 | `runviewer` | `runviewer.__main__.Shot` loads the shot, which runs the runviewer parser of every device that has one; the traces and markers are checked |
 | `narwhal` | Shots with Narwhal Devices Pulse Generators from `fixtures/narwhal/`: the instruction tables (odd-cycle clock periods, a wait after a ramp, a powerline wait, a wait at t=0), the runviewer parser, and the BLACS worker on a simulated device as master and secondary, with waits that are triggered, time out and synchronise to the powerline, an abort, and a secondary that is never triggered |
@@ -98,7 +100,8 @@ error window. labscript-utils releases before 3.5.0 ignore the variable.
 | `apps` | runmanager, runviewer, lyse and BLACS start under `QT_QPA_PLATFORM=offscreen`, listen on their labconfig ports and run for five seconds; the runmanager remote API is exercised; `zprocess.port_in_use`, when installed, returns the right result for each port and for a free port, and its times are reported; a second copy of each application reports that its port is in use, and the second BLACS creates no device tabs; the output of each is checked for tracebacks |
 | `icons` | runmanager, runviewer, lyse and BLACS start, each in a subprocess of the check under `QT_QPA_PLATFORM=offscreen` at a device pixel ratio of 1; every icon of every widget, action, tab, header and item has a 32 px image as well as the 16 px one, so that it is drawn from the 32 px image on a high-DPI screen, including one attached after the application started; and no QLabel holds a pixmap of icon size, which would be drawn from the 16 px image on every screen |
 | `lyse-gui` | The lyse GUI in this process under `QT_QPA_PLATFORM=offscreen`: a shot file that has not been run is not loaded; the results of two enabled single-shot routines appear in the dataframe and the shots table and a disabled routine does not run; results saved when the shot is analysed again replace them; lyse code issues no `DeprecationWarning` when the results add columns to the dataframe; a routine error pauses analysis and keeps the results saved before it; a routine that loops in Python and a routine blocked in a long sleep are interrupted by the Abort button and their workers survive, a routine that ignores the interrupt with an HDF5 file open has its worker restarted when it closes the file, without a kill, and the file is readable, analysis is paused in each case, and an interrupted worker then runs a routine to completion; in a subprocess, the Edit columns dialog survives being updated as 200 columns are added one at a time |
-| `blacs-shot` | lyse and BLACS start; a copy of the example shot is submitted to BLACS as runmanager submits it, and BLACS runs it with the dummy devices of the profile's connection table and sends it to lyse; the same file submitted again runs as a repeat in a new file; both shot files have a run time and a `data` group, in which the FunctionRunner's stop function recorded that both functions ran; the output of both applications has no tracebacks and BLACS.log has no errors |
+| `blacs-shot` | lyse and BLACS start; a copy of the example shot is submitted to BLACS as runmanager submits it, and BLACS runs it with the dummy devices of the profile's connection table and sends it to lyse; the same file submitted again runs as a repeat in a new file; both shot files have a run time and a `data` group, in which the FunctionRunner's stop function recorded that both functions ran, and the mock camera's two images; the output of both applications has no tracebacks and BLACS.log has no errors |
+| `cameras` | `fixtures/cameras/experiment.py` compiles, and the BLACS worker of each of its cameras runs in this process through a shot, a snap, the attributes text and continuous acquisition, with the images of the shot saved to the shot file: the mock camera of each camera package; a `DummyCamera`, the images of which are the values of their functions; a `GenICamCamera` with the simulated GenTL producer `viky.cti` of the `genicam` package, if harvesters is installed; and, on Linux, an `IMAQdxCamera` in a second process with stub NI-IMAQdx and NI Vision libraries that are built from `fixtures/cameras/imaqdx_stub/`, with which the saved images and attributes of each type, the errors, the retry of a grab that times out and the disposal of every NI Vision allocation are checked |
 | `blacs-workers` | A BLACS device tab runs in this process under `QT_QPA_PLATFORM=offscreen` with a worker from `fixtures/blacs_workers/`. A restart while the worker is idle, in `time.sleep()` or in a Python loop ends the worker promptly with exit status 0; a worker with a job that ignores `KeyboardInterrupt` exits after its abort timeout, or when the job closes its HDF5 file, which is then readable; outside Windows a worker stopped with `SIGSTOP` is killed after the quit timeout (the timeouts are shortened); after each restart the new worker runs a job. A fatal error ends the worker without calling its `shutdown()`. The stop button runs `shutdown()` and ends the worker, the stopped tab runs no states and has a message that cannot be dismissed, and the button starts the tab again |
 | `runmanager-abort` | The runmanager GUI in this process under `QT_QPA_PLATFORM=offscreen` compiles the experiment in `fixtures/runmanager_abort/`. The Abort button interrupts a compilation in `time.sleep()` or in a Python loop, the next shot is not compiled and the compiler keeps running; Restart subprocess ends a compiler in a Python loop promptly with exit status 0, one that ignores `KeyboardInterrupt` after its abort timeout, and outside Windows kills one stopped with `SIGSTOP` after the quit timeout (the timeouts are shortened); after each the compiler compiles three shots |
 | `zprocess-tests` | The zprocess test suite with pytest. Skipped unless `--all` or `--step zprocess-tests` is given; it takes two minutes |
@@ -158,7 +161,7 @@ application or error window started this way appears on the desktop.
 ## Requirements
 
 uv on the PATH or installed in the Python that runs `suite.py`; git; a C compiler for
-labscript-c-extensions; on Linux the shared libraries that Qt needs (`libegl1`,
+labscript-c-extensions and, on Linux, for the stub libraries of the `cameras` step; on Linux the shared libraries that Qt needs (`libegl1`,
 `libopengl0`, `libgl1`, `libxkbcommon0`, `libxkbcommon-x11-0`, `libdbus-1-3`,
 `libfontconfig1`, `libglib2.0-0`, `libxcb-cursor0` on Ubuntu 24.04).
 
@@ -173,6 +176,13 @@ can check that compiler output is streamed.
 the example connection table and `example_experiment.py`, after their device
 definitions. The experiment adds one function at the start of the shot and one at the
 stop, which records in the shot's `data/function_runner` group that both ran.
+
+`fixtures/cameras/` holds the mock camera that the `profile` step inserts into the
+example connection table and `example_experiment.py`, and its exposures, which go after
+`start()`; the experiment of the `cameras` step; and in `imaqdx_stub/` the C source of
+stub NI-IMAQdx and NI Vision libraries, with the functions that labscript-devices' IMAQdx
+module calls and one camera, which has an attribute of each type and returns frames with
+known pixel values. The `cameras` step builds them with `cc`.
 
 `fixtures/blacs_workers/` holds the BLACS worker of the `blacs-workers` step, with jobs
 that sleep, loop, ignore `KeyboardInterrupt`, write an HDF5 file and stop the process, a

@@ -1,6 +1,6 @@
 """Compile the profile's connection table and the example experiment through runmanager,
 and check the shot file contents, including the functions of the FunctionRunner that the
-profile step adds."""
+profile step adds, and the exposures of the mock camera that it adds."""
 
 import os
 import sys
@@ -48,14 +48,16 @@ with h5py.File(run_file, 'r') as f:
     check({'connection table', 'devices', 'globals', 'time_markers'} <= groups,
           f'shot file groups: {sorted(groups)}')
     devices = set(f['devices'].keys())
-    check(devices == {'pseudoclock', 'intermediate_device', 'function_runner'}, f'devices: {sorted(devices)}')
+    check(devices == {'pseudoclock', 'intermediate_device', 'function_runner', 'camera'},
+          f'devices: {sorted(devices)}')
     rows = len(f['connection table'])
-    check(rows == 7, f'connection table has {rows} rows')
+    check(rows == 9, f'connection table has {rows} rows')
     markers = len(f['time_markers'])
     check(markers == 3, f'{markers} time markers')
     names = {n.decode() if isinstance(n, bytes) else str(n)
              for n in f['connection table']['name']}
-    check({'pseudoclock', 'intermediate_device', 'analog_out', 'digital_out', 'function_runner'} <= names,
+    check({'pseudoclock', 'intermediate_device', 'analog_out', 'digital_out', 'function_runner',
+           'camera'} <= names,
           f'connection table names: {sorted(names)}')
     master = f['connection table'].attrs['master_pseudoclock']
     master = master.decode() if isinstance(master, bytes) else str(master)
@@ -73,6 +75,10 @@ with h5py.File(run_file, 'r') as f:
         check(name == 'record_call' and source.startswith('def record_call(')
               and source.rstrip().endswith("group.attrs['stop'] = label"),
               f'FunctionRunner function at t={t} is the whole source of record_call')
+    exposures = [(float(t), name.decode(), frametype.decode())
+                 for t, name, frametype, _ in f['devices/camera/EXPOSURES'][:]]
+    check(exposures == [(0.5, 'harness', 'first'), (0.75, 'harness', 'second')],
+          f'camera exposures: {exposures}')
 
 # BLACS stamps a shot with its run time after running it:
 with h5py.File(run_file, 'r+') as f:

@@ -94,8 +94,8 @@ check(storage.startswith(str(shared_drive)), f'experiment_shot_storage is {stora
 check(labconfig.get('paths', 'connection_table_py').endswith('connection_table.py'),
       'labconfig names the example connection table')
 
-# The FunctionRunner fixtures go after the device definitions of the example connection
-# table and experiment.
+# The FunctionRunner and camera fixtures go after the device definitions of the example
+# connection table and experiment.
 example_dir = Path(os.path.expandvars(labconfig.get('paths', 'connection_table_py'))).parent
 for name, fixture, marker in [
     ('connection_table.py', 'connection_table_addition.py', "\n\nif __name__ == '__main__':"),
@@ -104,10 +104,19 @@ for name, fixture, marker in [
     path = example_dir / name
     text = path.read_text()
     found = text.count(marker) == 1
-    check(found, f'{name} has one {marker.strip()!r} line, before which the FunctionRunner goes')
+    check(found, f'{name} has one {marker.strip()!r} line, before which the fixtures go')
     if found:
-        addition = (FIXTURES / 'function_runner' / fixture).read_text()
-        path.write_text(text.replace(marker, '\n' + addition + marker))
+        additions = [(FIXTURES / d / fixture).read_text() for d in ['function_runner', 'cameras']]
+        path.write_text(text.replace(marker, '\n' + '\n'.join(additions) + marker))
+
+# The camera's exposures go after start() in the example experiment.
+path = example_dir / 'example_experiment.py'
+text = path.read_text()
+marker = '\nstart()\n'
+found = text.count(marker) == 1
+check(found, 'example_experiment.py has one start() line, after which the exposures go')
+if found:
+    path.write_text(text.replace(marker, marker + (FIXTURES / 'cameras' / 'exposures.py').read_text()))
 
 fixtures = FIXTURES / 'runmanager_test'
 dest = profile / 'userlib' / 'labscriptlib' / 'runmanager_test'
