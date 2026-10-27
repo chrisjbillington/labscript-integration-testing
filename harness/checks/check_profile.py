@@ -3,8 +3,12 @@ the work directory, add a FunctionRunner to its example connection table and exp
 and add the runmanager test fixtures to its labscriptlib."""
 
 import configparser
+import json
 import os
 import shutil
+import signal
+import subprocess
+import time
 from pathlib import Path
 
 from _common import FIXTURES, PROFILE_MARKER, WORK, check, fail, finish, profile_dir, save_state
@@ -15,8 +19,33 @@ print('profile directory:', profile)
 from labscript_profile import default_labconfig_path
 from labscript_profile.create import create_profile
 
-# A zlock or zlog server started by a previous run keeps running with that run's shared
-# secret, so the secret is carried over to the new profile.
+
+def stop_servers():
+    """Stop the zlock and zlog servers that were started with the profile's labconfig,
+    which are the processes with a command line that runs zprocess.zlock or zprocess.zlog
+    and names a file in the profile. Windows only."""
+    query = ("Get-CimInstance Win32_Process | Where-Object CommandLine -like '*zprocess.zl*' "
+             "| Select-Object ProcessId, CommandLine | ConvertTo-Json")
+    result = subprocess.run(['powershell', '-NoProfile', '-NonInteractive', '-Command', query],
+                            capture_output=True, text=True, errors='replace', timeout=120)
+    processes = json.loads(result.stdout) if result.stdout.strip() else []
+    if isinstance(processes, dict):
+        processes = [processes]
+    prefix = os.path.normcase(str(profile) + os.sep)
+    for process in processes:
+        command = process['CommandLine']
+        normalised = os.path.normcase(command)
+        if prefix in normalised and ('zprocess.zlock' in normalised or 'zprocess.zlog' in normalised):
+            print(f'stopping process {process["ProcessId"]}: {command}')
+            try:
+                os.kill(process['ProcessId'], signal.SIGTERM)
+            except OSError as e:
+                print(f'could not stop process {process["ProcessId"]}: {e}')
+
+
+# On Windows the zlock and zlog servers that a previous run started hold their log files
+# in the profile open, so they are stopped. A server that is left running keeps that run's
+# shared secret, so the secret is carried over to the new profile.
 old_secret = None
 if profile.exists():
     if (profile / PROFILE_MARKER).exists():
@@ -24,7 +53,14 @@ if profile.exists():
         keys = list((profile / 'labconfig').glob('zpsecret-*.key'))
         if keys:
             old_secret = keys[0].read_text()
+        if os.name == 'nt':
+            stop_servers()
+        # The files of a stopped process can stay open for a short time:
+        deadline = time.monotonic() + 10
         shutil.rmtree(profile, ignore_errors=True)
+        while profile.exists() and time.monotonic() < deadline:
+            time.sleep(0.5)
+            shutil.rmtree(profile, ignore_errors=True)
         if profile.exists():
             left = [str(p) for p in profile.rglob('*') if p.is_file()]
             fail(f'could not remove the old profile; files still present: {left}')

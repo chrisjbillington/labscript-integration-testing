@@ -105,9 +105,12 @@ The suite reads its profile from `~/labscript-suite` and `import labscript_utils
 creates one when none exists, so the `profile` step runs before anything else imports
 labscript_utils. The harness writes a marker file into the profile it creates and on the
 next run deletes and recreates only a profile that has the marker. A profile without the
-marker stops the run; move it away before testing on a machine that has one. The shared
-secret is carried over from the previous harness profile so that a zlock or zlog server
-left running by an earlier run still accepts connections.
+marker stops the run; move it away before testing on a machine that has one. On Windows
+the zlock and zlog servers that an earlier run started hold their log files in the
+profile open, so the `profile` step stops each process with a command line that runs
+`zprocess.zlock` or `zprocess.zlog` and names a file in the profile before it deletes
+the profile. The shared secret is carried over from the previous harness profile so that
+a zlock or zlog server left running by an earlier run still accepts connections.
 
 The applications use the ports in the labconfig (42517 to 42523 and 7339 to 7341), so
 the `apps` and `blacs-shot` steps fail if a suite application is already running on the
