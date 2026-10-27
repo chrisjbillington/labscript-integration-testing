@@ -142,6 +142,18 @@ def rev_parse(dest, rev):
                           capture_output=True, text=True, check=True).stdout.strip()
 
 
+def is_branch_or_pull_request(upstream, default_ref, repo, ref):
+    """Whether `ref` of `repo` is a pull request, or a branch other than the default branch
+    `default_ref` of the component's `upstream` repo."""
+    if ref.startswith('pr/'):
+        return True
+    if repo.lower() == upstream.lower() and ref == default_ref:
+        return False
+    heads = subprocess.run(['git', 'ls-remote', '--heads', f'https://github.com/{repo}', ref],
+                           capture_output=True, text=True, check=True).stdout
+    return any(line.split('\t')[-1] == f'refs/heads/{ref}' for line in heads.splitlines())
+
+
 def ref_label(upstream, repo, ref):
     """`ref`, prefixed with `repo@` if `repo` is not the component's `upstream` repo."""
     return ref if repo.lower() == upstream.lower() else f'{repo}@{ref}'
@@ -212,7 +224,8 @@ def cmd_clone(args):
         dest = repos_dir / name
         if name in specs:
             refs = specs[name]
-            if len(refs) == 1:
+            merge = len(refs) > 1 or is_branch_or_pull_request(repo, default_ref, *refs[0])
+            if not merge:
                 repo = refs[0][0]
         elif (dest / '.git').exists() and local_work(dest, default_ref):
             head = rev_parse(dest, 'HEAD')
@@ -221,6 +234,7 @@ def cmd_clone(args):
             continue
         else:
             refs = [(repo, default_ref)]
+            merge = False
         url = f'https://github.com/{repo}'
         fresh = not (dest / '.git').exists()
         if fresh:
@@ -229,7 +243,7 @@ def cmd_clone(args):
             run(['git', '-C', dest, 'remote', 'add', 'origin', url], check=True)
         elif origin_repo(dest) != repo.lower():
             run(['git', '-C', dest, 'remote', 'set-url', 'origin', url], check=True)
-        if len(refs) > 1 or refs[0][1].startswith('pr/'):
+        if merge:
             base, heads = merge_refs(dest, repo, refs, default_ref)
             head = rev_parse(dest, 'HEAD')
             manifest[name] = {'repo': repo, 'ref': ' '.join(heads), 'commit': head, 'base': base,

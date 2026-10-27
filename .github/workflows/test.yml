@@ -14,7 +14,7 @@ on:
   workflow_dispatch:
     inputs:
       refs:
-        description: 'Component refs, space-separated: name=[owner/repo@]ref (ref is a branch, tag, commit or pr/N, the pull request merged into the current default branch; several refs for one component are merged in turn into its default branch)'
+        description: 'Component refs, space-separated: name=[owner/repo@]ref (ref is a branch, tag, commit or pr/N; pull requests and branches are merged into the current default branch, several for one component in turn)'
         default: ''
       pins:
         description: 'Extra pip requirements for every job, space-separated, for example "numpy<2.5"'

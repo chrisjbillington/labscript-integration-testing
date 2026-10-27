@@ -27,9 +27,11 @@ ref is fetched and checked out at the tip of its upstream default branch, unless
 already exists there with uncommitted changes or with a branch other than the default
 branch checked out, in which case the clone is used as it is. A ref is a branch, tag, commit or `pr/<N>`, for
 example `labscript=pr/124` or `zprocess=chrisjbillington/zprocess@fix-conpty`. `pr/<N>`
-is the head of pull request N merged by `clone` into the current tip of the component's
-default branch, so the result is the code that merging would produce; if the merge
-conflicts, `clone` stops with a message. Several refs for one component, for example
+is the head of pull request N. A pull request, or a branch other than the default
+branch, of the upstream repository or of a fork, is merged by `clone` into the current
+tip of the default branch of the component's upstream repository, so the result is the
+code that merging would produce; if the merge conflicts, `clone` stops with a message.
+A tag or commit is checked out as it is. Several refs for one component, for example
 `lyse=pr/157 lyse=pr/161 lyse=chrisjbillington/lyse@fix-plot`, are merged in turn in the
 order given into the current tip of the default branch of the component's upstream
 repository. The resolved commits, and for merged refs their heads and the default
