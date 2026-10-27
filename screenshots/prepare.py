@@ -9,8 +9,9 @@ empty or must have been made by this script; it is deleted and made again. The
 profile's shared drive is SHARED_DRIVE, and its apparatus has the devices of
 fixture/connection_table.py. The script compiles the connection table, makes a globals
 file, compiles a sequence of twelve shots from the globals and gives each shot a run
-time, as BLACS would, so that lyse loads it. It writes the paths that shoot.py needs to
-SHARED_DRIVE/screenshots.json."""
+time, as BLACS would, so that lyse loads it. It then adds two globals that cannot be
+evaluated, so that runmanager shows its colour for errors. It writes the paths that
+shoot.py needs to SHARED_DRIVE/screenshots.json."""
 
 import argparse
 import configparser
@@ -41,6 +42,11 @@ GLOBALS = [
     ('imaging', 'camera_binning', '2', '', ''),
     ('imaging', 'imaging_axis', "'vertical'", '', ''),
     ('imaging', 'save_raw_images', 'True', '', ''),
+]
+# Globals that are added after the shots are compiled:
+ERROR_GLOBALS = [
+    ('imaging', 'probe_frequency', 'imaging_detuning + probe_offset', 'MHz', ''),
+    ('imaging', 'repump_power', '0.5 *', '', ''),
 ]
 SINGLESHOT_ROUTINES = ['fit_cloud.py', 'check_saturation.py']
 MULTISHOT_ROUTINES = ['temperature.py', 'loading_curve.py']
@@ -123,14 +129,20 @@ compile_shots(ct_py, [ct_h5])
 
 globals_file = labscriptlib / 'globals.h5'
 runmanager.new_globals_file(str(globals_file))
-for group, name, value, units, expansion in GLOBALS:
-    if group not in runmanager.get_grouplist(str(globals_file)):
-        runmanager.new_group(str(globals_file), group)
-    runmanager.new_global(str(globals_file), group, name)
-    runmanager.set_value(str(globals_file), group, name, value)
-    runmanager.set_units(str(globals_file), group, name, units)
-    if expansion:
-        runmanager.set_expansion(str(globals_file), group, name, expansion)
+
+
+def add_globals(globals_list):
+    for group, name, value, units, expansion in globals_list:
+        if group not in runmanager.get_grouplist(str(globals_file)):
+            runmanager.new_group(str(globals_file), group)
+        runmanager.new_global(str(globals_file), group, name)
+        runmanager.set_value(str(globals_file), group, name, value)
+        runmanager.set_units(str(globals_file), group, name, units)
+        if expansion:
+            runmanager.set_expansion(str(globals_file), group, name, expansion)
+
+
+add_globals(GLOBALS)
 
 sequence_globals = runmanager.get_globals(runmanager.get_all_groups(str(globals_file)))
 evaluated, _, _ = runmanager.evaluate_globals(sequence_globals)
@@ -139,6 +151,7 @@ sequence_attrs, output_dir, prefix = runmanager.new_sequence_details(str(experim
 run_files = list(runmanager.make_run_files(output_dir, sequence_globals, shots,
                                            sequence_attrs, prefix))
 compile_shots(experiment, run_files)
+add_globals(ERROR_GLOBALS)
 
 run_time = datetime.now()
 for run_file in run_files:
