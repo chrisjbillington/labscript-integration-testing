@@ -69,6 +69,7 @@ STEPS = [
     ('narwhal', ['profile']),
     ('runmanager-api', ['profile']),
     ('apps', ['compile']),
+    ('icons', ['compile']),
     ('lyse-gui', ['compile']),
     ('blacs-shot', ['compile']),
     ('blacs-workers', ['profile']),
