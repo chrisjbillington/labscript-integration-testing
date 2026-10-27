@@ -214,8 +214,8 @@ try:
         row = shots_model.row_number_by_filepath[run_shot]
         if column not in shots_model.dataframe.columns:
             return None, None
-        item = shots_model._model.item(row, shots_model.column_indices[column])
-        return shots_model.dataframe.at[row, column], item.text() if item else None
+        index = shots_model._model.index(row, shots_model.column_indices[column])
+        return shots_model.dataframe.at[row, column], index.data()
 
     def analyse(mark_not_done, until_paused=False):
         n_multishot = multishot_log.count
