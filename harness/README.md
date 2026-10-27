@@ -55,9 +55,13 @@ should use a `--repos-dir` and a `--venv` of its own if the clones there are use
 other work.
 
 `test` runs the steps below in order and writes `report.md`, `state.json` and one log
-per step to `harness/work-py<version>/` (`--work` to change). A step that another step
-depends on is skipped when the dependency failed. The exit status is nonzero if any step
-failed. Set `GITHUB_STEP_SUMMARY` and the report is appended to it.
+per step to `harness/work-py<version>/` (`--work` to change), which it deletes first. A
+step that another step depends on is skipped when the dependency failed, and with
+`--step` a step is skipped unless the steps that it depends on are also given: every
+step but `versions`, `imports` and `zprocess-tests` needs `profile`, and `lyse`,
+`runviewer`, `apps`, `lyse-gui` and `blacs-shot` also need `compile`, for example
+`--step profile --step compile --step runmanager-abort`. The exit status is nonzero if
+any step failed. Set `GITHUB_STEP_SUMMARY` and the report is appended to it.
 
 Every step runs with `LABSCRIPT_DISABLE_GRAPHICAL_EXCEPTHOOK=1`, so that the
 applications and their subprocesses print exceptions to stderr instead of opening an
