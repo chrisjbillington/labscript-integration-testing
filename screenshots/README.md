@@ -61,9 +61,12 @@ differently. Images for comparisons and pull requests are taken on screen.
 the colour scheme, runs the application's entry module and, once the main window is
 shown and the splash screen is hidden, gives it the size in `SIZES` and loads the
 example data. It saves the image once the data is loaded and the window has been
-unchanged for 0.3 s. Text cursors do not blink, the inactive palette has the colours of
-the active one, and the window does not take mouse input, so that the image does not
-depend on the focus or the mouse pointer.
+unchanged for 0.3 s. Before the image is taken, the window is made the active window;
+the applications do this in turn, using a lock file in the output directory. On Windows,
+which lets a process activate its window only while it handles input, `shoot.py` sends a
+key press of Alt first. The JSON file records whether the window was active. Text cursors
+do not blink, the inactive palette has the colours of the active one, and the window does
+not take mouse input, so that the image does not depend on the mouse pointer.
 
 - BLACS: the device tabs run `fixture/fake_worker.py` in place of their workers and do
   not check the output values of the devices, so they start without hardware, and the

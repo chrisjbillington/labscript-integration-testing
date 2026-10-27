@@ -52,6 +52,8 @@ LYSE_COLUMNS = ['mot_load_time', 'tof', 'fit_cloud', 'check_saturation']
 # Duration for which the window must be unchanged before we consider it drawn, in
 # seconds. It is longer than the 0.1 s interval at which runviewer resamples traces.
 SETTLE_TIME = 0.3
+# Maximum duration for which we wait to activate the main window, in seconds:
+ACTIVATION_TIMEOUT = 20
 PALETTE_ROLES = [
     'WindowText', 'Button', 'Light', 'Midlight', 'Dark', 'Mid', 'Text', 'BrightText',
     'ButtonText', 'Base', 'Window', 'Shadow', 'Highlight', 'HighlightedText', 'Link',
@@ -220,9 +222,9 @@ SETUP = {
 }
 
 
-def save(window):
+def save(window, active):
+    """Write the JSON file of the image"""
     qapp = QtWidgets.QApplication.instance()
-    window.grab().save(str(out))
     hints = qapp.styleHints()
     scheme = hints.colorScheme().name if hasattr(hints, 'colorScheme') else None
     window_colour = qapp.palette().color(QtGui.QPalette.ColorRole.Window)
@@ -240,7 +242,7 @@ def save(window):
         'color_scheme': scheme,
         'window_colour': window_colour.name(),
         'window_is_dark': window_colour.lightness() < 128,
-        'window_active': window.isActiveWindow(),
+        'window_active': active,
         'device_pixel_ratio': window.devicePixelRatioF(),
         'font': qapp.font().toString(),
     }
@@ -287,14 +289,35 @@ def take_screenshot():
     # The mouse pointer does not highlight the widgets under it:
     window.setWindowFlag(QtCore.Qt.WindowType.WindowTransparentForInput)
     window.showNormal()
-    activate(window)
     use_active_colours()
     window.resize(width, height)
     settle()
     SETUP[args.app](app)
     window.resize(width, height)
     settle(lambda: (window.width(), window.height()) == (width, height))
-    save(window)
+    # The applications run at the same time, and each makes its window active before its
+    # image is taken. A lock file in the output directory makes them do this in turn.
+    # We wait at most ACTIVATION_TIMEOUT for the lock and for the window to be active.
+    lock = out.parent / 'activation.lock'
+    t0 = time.monotonic()
+    while time.monotonic() - t0 < ACTIVATION_TIMEOUT:
+        try:
+            os.close(os.open(lock, os.O_CREAT | os.O_EXCL))
+            break
+        except FileExistsError:
+            time.sleep(0.05)
+    try:
+        activate(window)
+        t0 = time.monotonic()
+        while not window.isActiveWindow() and time.monotonic() - t0 < ACTIVATION_TIMEOUT:
+            QtWidgets.QApplication.instance().processEvents()
+            time.sleep(0.02)
+        settle()
+        active = window.isActiveWindow()
+        window.grab().save(str(out))
+    finally:
+        lock.unlink(missing_ok=True)
+    save(window, active)
 
 
 def check_ready():

@@ -44,6 +44,7 @@ schemes = args.scheme or (['light'] if args.offscreen else SCHEMES)
 
 out = Path(args.out).resolve()
 out.mkdir(parents=True, exist_ok=True)
+(out / 'activation.lock').unlink(missing_ok=True)
 data_file = Path(args.data).resolve()
 
 
