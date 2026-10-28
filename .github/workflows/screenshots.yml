@@ -1,8 +1,8 @@
 name: Screenshots
 run-name: Screenshots of ${{ inputs.after || 'the default branches' }}
 
-# Takes images of the main windows of BLACS, runmanager, lyse and runviewer on Windows,
-# with example data, for each Qt binding and in the light and dark colour schemes: a
+# Takes images of the main windows of BLACS, runmanager, lyse and runviewer on Windows
+# and macOS, with example data, for each Qt binding and in the light and dark colour schemes: a
 # "before" set with the default branches or the refs in `before`, with the platform's
 # default Qt style and with Fusion, and an "after" set with the refs in `after`. See
 # screenshots/README.md.
@@ -19,6 +19,9 @@ on:
       after_styles:
         description: 'Qt styles of the after set: default, fusion or both'
         default: 'default fusion'
+      oses:
+        description: 'JSON list of runner labels'
+        default: '["windows-latest"]'
       qts:
         description: 'JSON list of Qt bindings'
         default: '["PySide6", "PyQt6", "PyQt5"]'
@@ -38,12 +41,13 @@ env:
 
 jobs:
   screenshots:
-    name: ${{ matrix.set }} ${{ matrix.qt }}
-    runs-on: windows-latest
+    name: ${{ matrix.os }} ${{ matrix.set }} ${{ matrix.qt }}
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
+        os: ${{ fromJSON(inputs.oses) }}
         set: [before, after]
         qt: ${{ fromJSON(inputs.qts) }}
     defaults:
@@ -57,6 +61,7 @@ jobs:
           python-version: ${{ env.PYTHON }}
 
       - name: Set the display resolution
+        if: runner.os == 'Windows'
         shell: pwsh
         continue-on-error: true
         run: |
@@ -77,7 +82,9 @@ jobs:
             --python "$(python -c 'import sys; print(sys.executable)')"
 
       - name: Make the profile and the example data
-        run: venv/Scripts/python screenshots/prepare.py "$RUNNER_TEMP/shared_drive"
+        run: |
+          if [ "$RUNNER_OS" = Windows ]; then bin=Scripts; else bin=bin; fi
+          venv/$bin/python screenshots/prepare.py "$RUNNER_TEMP/shared_drive"
 
       - name: Take the images
         run: |
@@ -86,11 +93,13 @@ jobs:
           for style in $styles; do
             style_args+=(--style "$style")
           done
-          # Qt 5 has a dark palette only when Windows is in dark mode.
+          # On Windows, Qt 5 has a dark palette only when Windows is in dark mode.
           for scheme in light dark; do
-            if [ $scheme = dark ]; then light=0; else light=1; fi
-            reg add 'HKCU\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize' \
-              //v AppsUseLightTheme //t REG_DWORD //d $light //f
+            if [ "$RUNNER_OS" = Windows ]; then
+              if [ $scheme = dark ]; then light=0; else light=1; fi
+              reg add 'HKCU\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize' \
+                //v AppsUseLightTheme //t REG_DWORD //d $light //f
+            fi
             python screenshots/run_all.py --data "$RUNNER_TEMP/shared_drive/screenshots.json" \
               --out "out/${{ matrix.set }}" --venv ${{ matrix.qt }}=venv --scheme $scheme \
               "${style_args[@]}" ${{ inputs.switch_scheme && '--switch-scheme' || '' }}
@@ -100,6 +109,6 @@ jobs:
       - uses: actions/upload-artifact@v6
         if: always()
         with:
-          name: screenshots-${{ matrix.set }}-${{ matrix.qt }}
+          name: screenshots-${{ matrix.os }}-${{ matrix.set }}-${{ matrix.qt }}
           path: out
           if-no-files-found: ignore

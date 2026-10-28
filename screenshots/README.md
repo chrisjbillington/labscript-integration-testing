@@ -8,20 +8,23 @@ little empty space.
 
 ## On GitHub Actions
 
-`.github/workflows/screenshots.yml` takes the images on Windows. Dispatch it with the
-refs of the change in `after`, in the form that `test.yml` takes:
+`.github/workflows/screenshots.yml` takes the images on Windows, and on macOS with
+`oses` set to `["macos-latest"]` or `["windows-latest", "macos-latest"]`. Dispatch it with
+the refs of the change in `after`, in the form that `test.yml` takes:
 
 ```
 gh workflow run screenshots.yml -R chrisjbillington/labscript-integration-testing \
     -f after="labscript-utils=pr/151 runmanager=pr/154"
 ```
 
-It has one job for each Qt binding and each of two sets: "before", with the default
+It has one job for each runner, each Qt binding and each of two sets: "before", with the default
 branches or the refs in `before`, and "after", with the refs in `after`. The before set
 is taken with the default style and with Fusion, and the after set with the styles in
-`after_styles`. Each job takes the light images with Windows in light mode and the dark
-images with Windows in dark mode, and uploads the images as the artifact
-`screenshots-<set>-<binding>`:
+`after_styles`. On Windows, each job takes the light images with Windows in light mode and
+the dark images with Windows in dark mode. On macOS, PyQt5 has light images only, since
+Qt 5 there does not follow a dark mode set with `defaults write -g AppleInterfaceStyle
+Dark` on the runner. Each job uploads the images as the artifact
+`screenshots-<runner>-<set>-<binding>`:
 
 ```
 gh run download RUN_ID -R chrisjbillington/labscript-integration-testing -D DIR
@@ -101,8 +104,8 @@ the applications, even when it is not activated, with
 reg add HKCU\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize /v AppsUseLightTheme /t REG_DWORD /d 0 /f
 ```
 
-and back in light mode with `/d 1`. On Linux, `run_all.py` skips PyQt5 with the dark
-scheme.
+and back in light mode with `/d 1`. On Linux and macOS, `run_all.py` skips PyQt5 with
+the dark scheme.
 
 On a Linux machine with a real profile, run the applications in namespaces, as the
 harness does. The D-Bus session bus refuses a client whose user ID is 0, so the command
