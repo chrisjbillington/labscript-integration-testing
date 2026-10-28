@@ -45,11 +45,11 @@ runmanager.new_group(gf, 'scan')
 runmanager.new_group(gf, 'fixed')
 for name, value, expansion in [('amplitude', '[0.1, 0.2, 0.3]', 'outer'),
                                ('gain', '(1, 2)', 'zip1'),
-                               ('offset', 'array([10, 20])', 'zip1')]:
+                               ('offset', 'np.array([10, 20])', 'zip1')]:
     runmanager.new_global(gf, 'scan', name)
     runmanager.set_value(gf, 'scan', name, value)
     runmanager.set_expansion(gf, 'scan', name, expansion)
-for name, value in [('duration', '1.0'), ('use_do', 'True'), ('derived', 'array(amplitude) * 2')]:
+for name, value in [('duration', '1.0'), ('use_do', 'True'), ('derived', 'np.array(amplitude) * 2')]:
     runmanager.new_global(gf, 'fixed', name)
     runmanager.set_value(gf, 'fixed', name, value)
 runmanager.set_expansion(gf, 'fixed', 'derived', '')
@@ -141,7 +141,7 @@ check(isinstance(evaluated['fixed']['derived'], NameError),
 check(hierarchy.get('derived') == ['amplitude', 'duration', 'gain'], f'hierarchy of a conditional: {hierarchy}')
 runmanager.set_value(gf, 'fixed', 'duration', '1.0')
 runmanager.set_value(gf, 'fixed', 'use_do', 'True')
-runmanager.set_value(gf, 'fixed', 'derived', 'array(amplitude) * 2')
+runmanager.set_value(gf, 'fixed', 'derived', 'np.array(amplitude) * 2')
 
 # A global that fails the expansion check is still in the namespace for the globals
 # that refer to it
@@ -161,13 +161,13 @@ evaluated, _, _ = runmanager.evaluate_globals(
     runmanager.get_globals(runmanager.get_all_groups(gf)), raise_exceptions=False)
 check(isinstance(evaluated['fixed']['derived'], ValueError) and 'amplitude' in str(evaluated['fixed']['derived']),
       f"zipped global referring to an outer global holds an error: {evaluated['fixed']['derived']!r}")
-runmanager.set_value(gf, 'fixed', 'derived', 'array(offset) * 2')
+runmanager.set_value(gf, 'fixed', 'derived', 'np.array(offset) * 2')
 runmanager.set_expansion(gf, 'fixed', 'derived', 'zip1')
 evaluated, _, _ = runmanager.evaluate_globals(
     runmanager.get_globals(runmanager.get_all_groups(gf)), raise_exceptions=False)
 check(np.array_equal(evaluated['fixed']['derived'], [20, 40]),
       f"zipped global referring to its own zip group evaluates: {evaluated['fixed']['derived']!r}")
-runmanager.set_value(gf, 'fixed', 'derived', 'array(amplitude) * 2')
+runmanager.set_value(gf, 'fixed', 'derived', 'np.array(amplitude) * 2')
 runmanager.set_expansion(gf, 'fixed', 'derived', '')
 
 # Each write of a string to a globals file adds 4 kB to it, which is reclaimed by
@@ -191,9 +191,9 @@ check('c' not in tokens, f'remove_comments_and_tokenify {tokens!r}')
 check(runmanager.find_comments('a + 1 # c') == [(5, 9)], f"find_comments {runmanager.find_comments('a + 1 # c')}")
 check(isinstance(runmanager.globals_diff_groups(groups, groups), str), 'globals_diff_groups')
 
-# The namespace in which globals are evaluated. The names of `from pylab import *` give
-# a FutureWarning that names their numpy replacements, and are left out if
-# pylab_namespace is False in the [runmanager] section of the labconfig. The file named
+# The namespace in which globals are evaluated. With pylab_namespace = True in the
+# [runmanager] section of the labconfig, the names of `from pylab import *` give a
+# FutureWarning that names their numpy replacements; with False, they are left out. The file named
 # by globals_namespace in that section adds names, and a file that cannot be loaded is
 # an error for every global.
 NAMESPACE_FEATURE = 'runmanager #163'
@@ -229,6 +229,7 @@ def evaluate_namespace_globals(global_names=('from_pylab', 'from_numpy', 'unit',
 
 
 try:
+    set_runmanager_options(pylab_namespace='True')
     values, message = evaluate_namespace_globals()
     if check('from_pylab: ' in message, f'pylab names give a FutureWarning: {message!r}',
              known=NAMESPACE_FEATURE):
@@ -246,7 +247,7 @@ try:
               f'with pylab_namespace = False, pylab names are undefined and sum is the builtin: {values}, '
               f'{message!r}')
 
-        set_runmanager_options(globals_namespace=str(namespace_file))
+        set_runmanager_options(pylab_namespace='True', globals_namespace=str(namespace_file))
         runmanager.new_global(gf3, 'g', 'from_file')
         runmanager.set_value(gf3, 'g', 'from_file', 'half')
         values, message = evaluate_namespace_globals(('from_pylab', 'from_file', 'nested_sum'))
