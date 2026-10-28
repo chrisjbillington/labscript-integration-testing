@@ -86,7 +86,8 @@ check(runmanager.guess_expansion_type([1, 2]) == 'outer' and runmanager.guess_ex
 
 # Expansion settings record whether the user chose them. set_expansion records a custom
 # setting unless told otherwise, and automatic_expansions keeps custom settings, makes
-# lists and ranges outer and zips derived lists with the list they derive from
+# lists and ranges outer and zips derived lists with the list they derive from, also
+# when the setting of that list is custom
 check(runmanager.guess_expansion_type(range(3)) == 'outer', 'guess_expansion_type: ranges are outer')
 custom = runmanager.get_custom_expansions(groups)
 check(custom['scan'] == {'amplitude': True, 'gain': True, 'offset': True} and custom['fixed']['derived'] is True
@@ -97,8 +98,16 @@ flat_values = runmanager.flatten_globals(evaluated, evaluated=True)
 flat_custom = {name: flag for group in runmanager.get_custom_expansions(groups).values() for name, flag in group.items()}
 automatic = runmanager.automatic_expansions(flat_values, hierarchy, expansions, flat_custom)
 check(automatic == {'amplitude': 'outer', 'gain': 'zip1', 'offset': 'zip1', 'duration': '', 'use_do': '',
-                    'derived': 'outer'},
+                    'derived': 'amplitude'},
       f'automatic_expansions with a custom outer amplitude: {automatic}')
+# An outer global and the zip group named after it are one axis
+runmanager.set_expansion(gf, 'fixed', 'derived', 'amplitude', custom=False)
+zipped_globals = runmanager.get_globals(groups)
+zipped, _, _ = runmanager.evaluate_globals(zipped_globals)
+zipped_shots = runmanager.expand_globals(zipped_globals, zipped)
+check(len(zipped_shots) == 6 and all(np.isclose(s['derived'], 2 * s['amplitude']) for s in zipped_shots),
+      f'outer global zipped with the zip group named after it: {len(zipped_shots)} shots (3 x 2 zip)')
+runmanager.set_expansion(gf, 'fixed', 'derived', '', custom=False)
 flat_custom['amplitude'] = False
 automatic = runmanager.automatic_expansions(flat_values, hierarchy, expansions, flat_custom)
 check(automatic['amplitude'] == 'amplitude' and automatic['derived'] == 'amplitude',
