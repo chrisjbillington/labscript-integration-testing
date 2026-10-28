@@ -60,7 +60,7 @@ for m in failed:
 # pseudoclock and the devices on its clocklines, so a trace ends at most that long after
 # stop_time.
 from labscript_devices.DummyPseudoclock.labscript_devices import DummyPseudoclock  # noqa: E402
-from labscript_devices.DummyIntermediateDevice import DummyIntermediateDevice  # noqa: E402
+from labscript_devices.DummyIntermediateDevice.labscript_devices import DummyIntermediateDevice  # noqa: E402
 
 final_tick = 1 / min(DummyPseudoclock.clock_limit, DummyIntermediateDevice.clock_limit)
 print(f'final tick {final_tick:.3g} s')

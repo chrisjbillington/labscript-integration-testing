@@ -5,7 +5,7 @@ number of cycles, and a ramp that ends at a wait."""
 
 from labscript import start, stop, wait, AnalogOut, ClockLine, DigitalOut, Trigger
 from labscript_devices.NarwhalPulseGenerator.labscript_devices import NarwhalPulseGenerator
-from labscript_devices.DummyIntermediateDevice import DummyIntermediateDevice
+from labscript_devices.DummyIntermediateDevice.labscript_devices import DummyIntermediateDevice
 
 NarwhalPulseGenerator('pulsegen', serial_number=1234, trigger_out_length=20e-9)
 ClockLine('daq_clock', pulsegen.pseudoclock, 'channel 0')

@@ -1,7 +1,7 @@
 from labscript import AnalogOut, ClockLine, DDS, DigitalOut, Shutter, StaticDDS, start, stop
 from labscript_devices.NI_DAQmx.models import NI_PCI_6733
-from labscript_devices.NovaTechDDS9M import NovaTechDDS9M
-from labscript_devices.PulseBlasterUSB import PulseBlasterUSB
+from labscript_devices.NovaTechDDS9M.labscript_devices import NovaTechDDS9M
+from labscript_devices.PulseBlasterUSB.labscript_devices import PulseBlasterUSB
 
 PulseBlasterUSB(name='pulseblaster_0', board_number=0)
 ClockLine(name='ni_clock', pseudoclock=pulseblaster_0.pseudoclock, connection='flag 0')

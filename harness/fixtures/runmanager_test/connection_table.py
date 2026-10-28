@@ -1,6 +1,6 @@
 from labscript import start, stop, AnalogOut, DigitalOut
 from labscript_devices.DummyPseudoclock.labscript_devices import DummyPseudoclock
-from labscript_devices.DummyIntermediateDevice import DummyIntermediateDevice
+from labscript_devices.DummyIntermediateDevice.labscript_devices import DummyIntermediateDevice
 
 DummyPseudoclock('pseudoclock')
 DummyIntermediateDevice('dummy', parent_device=pseudoclock.clockline)

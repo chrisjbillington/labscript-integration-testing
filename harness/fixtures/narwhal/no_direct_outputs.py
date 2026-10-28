@@ -2,7 +2,7 @@
 
 from labscript import start, stop, AnalogOut, ClockLine
 from labscript_devices.NarwhalPulseGenerator.labscript_devices import NarwhalPulseGenerator
-from labscript_devices.DummyIntermediateDevice import DummyIntermediateDevice
+from labscript_devices.DummyIntermediateDevice.labscript_devices import DummyIntermediateDevice
 
 NarwhalPulseGenerator('pulsegen', serial_number=1234)
 ClockLine('daq_clock', pulsegen.pseudoclock, 'channel 0')

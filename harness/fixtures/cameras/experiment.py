@@ -8,7 +8,7 @@ import os
 
 from labscript import start, stop
 from labscript_devices.DummyPseudoclock.labscript_devices import DummyPseudoclock
-from labscript_devices.DummyIntermediateDevice import DummyIntermediateDevice
+from labscript_devices.DummyIntermediateDevice.labscript_devices import DummyIntermediateDevice
 from labscript_devices.IMAQdxCamera.labscript_devices import IMAQdxCamera
 from labscript_devices.PylonCamera.labscript_devices import PylonCamera
 from labscript_devices.SpinnakerCamera.labscript_devices import SpinnakerCamera
