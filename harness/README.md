@@ -42,10 +42,9 @@ appear in the report.
 `install` makes `harness/venvs/py<version>` with uv (`--venv` to change) and installs
 every component from its clone in one resolver run, with the Qt binding, harvesters for
 the `cameras` step (except on Python 3.15, for which genicam has no wheels) and any pins.
-PySide6 is installed as `PySide6<6.12`: PySide6 6.12.0 crashes lyse
-([PYSIDE-3500](https://qt-project.atlassian.net/browse/PYSIDE-3500), and on Python 3.11
-[PYSIDE-3474](https://qt-project.atlassian.net/browse/PYSIDE-3474)). PySide6 6.11 does not support Python 3.15, so the workflow has no PySide6
-jobs on Python 3.15.
+On Python 3.11 PySide6 is installed as `PySide6!=6.12.0`: PySide6 6.12.0 aborts any
+long-running application on Python 3.11
+([PYSIDE-3474](https://qt-project.atlassian.net/browse/PYSIDE-3474)).
 `--python` is a version for uv to find or download, or a path to an interpreter.
 Components are built with `SETUPTOOLS_SCM_PRETEND_VERSION=99.0.0` because shallow clones
 have no tags and the components pin each other by version.

@@ -61,9 +61,13 @@ PRETEND_VERSION = '99.0.0'
 
 QT_BINDINGS = ['PySide6', 'PyQt6', 'PyQt5']
 
-# The requirement installed for each Qt binding. PySide6 6.12.0 crashes lyse
-# (PYSIDE-3500 and PYSIDE-3474).
-QT_REQUIREMENTS = {'PySide6': 'PySide6<6.12', 'PyQt6': 'PyQt6', 'PyQt5': 'PyQt5'}
+# The requirements installed for each Qt binding. PySide6 6.12.0 aborts any
+# long-running application on Python 3.11 (PYSIDE-3474).
+QT_REQUIREMENTS = {
+    'PySide6': ['PySide6!=6.12.0; python_version < "3.12"', 'PySide6; python_version >= "3.12"'],
+    'PyQt6': ['PyQt6'],
+    'PyQt5': ['PyQt5'],
+}
 
 # For the GenICamCamera check. genicam, which harvesters requires, has no wheels for
 # Python 3.15.
@@ -314,7 +318,7 @@ def cmd_install(args):
     py = venv_python(venv)
     env = dict(os.environ, SETUPTOOLS_SCM_PRETEND_VERSION=PRETEND_VERSION)
     requirements = [str(repos_dir / n) for n in COMPONENTS]
-    requirements += [QT_REQUIREMENTS[args.qt], 'pytest', HARVESTERS_REQUIREMENT] + args.pin
+    requirements += QT_REQUIREMENTS[args.qt] + ['pytest', HARVESTERS_REQUIREMENT] + args.pin
     result = run(uv + ['pip', 'install', '--python', py] + requirements, env=env)
     components = installed_components(repos_dir)
     version = subprocess.run([str(py), '-c', 'import platform; print(platform.python_version())'],
