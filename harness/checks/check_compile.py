@@ -82,7 +82,7 @@ with h5py.File(run_file, 'r') as f:
 
 # BLACS stamps a shot with its run time after running it:
 with h5py.File(run_file, 'r+') as f:
-    f.attrs['run time'] = datetime.now().strftime('%Y%m%dT%H%M%S.%f')
+    f.attrs['run time'] = datetime.now().astimezone().strftime('%Y%m%dT%H%M%S.%f%z')
 
 save_state(connection_table_h5=ct_h5, example_shot=run_file, example_script=script)
 finish()

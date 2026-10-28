@@ -153,10 +153,10 @@ run_files = list(runmanager.make_run_files(output_dir, sequence_globals, shots,
 compile_shots(experiment, run_files)
 add_globals(ERROR_GLOBALS)
 
-run_time = datetime.now()
+run_time = datetime.now().astimezone()
 for run_file in run_files:
     with h5py.File(run_file, 'r+') as f:
-        f.attrs['run time'] = run_time.strftime('%Y%m%dT%H%M%S.%f')
+        f.attrs['run time'] = run_time.strftime('%Y%m%dT%H%M%S.%f%z')
     run_time += timedelta(seconds=4.2)
 
 data = {
