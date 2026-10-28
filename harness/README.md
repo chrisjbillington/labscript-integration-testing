@@ -85,6 +85,15 @@ Every step runs with `LABSCRIPT_DISABLE_GRAPHICAL_EXCEPTHOOK=1`, so that the
 applications and their subprocesses print exceptions to stderr instead of opening an
 error window. labscript-utils releases before 3.5.0 ignore the variable.
 
+Each step runs with `harness/stackdump/` first on `PYTHONPATH`. The `sitecustomize`
+module there makes every Python process of the step that is still running 15 s before
+the step's timeout write the stack of each of its threads to
+`logs/<step>-stacks/<pid>-<script>.txt` with `faulthandler`. When a step times out, the
+harness appends these stacks to the step's log. When a step finishes, the harness
+deletes the directory. A process that keeps running after its step, such as a zlock or
+zlog server, writes its stacks at the same time after the step's start. On Windows the
+files of such processes cannot be deleted while they run, and are left in the directory.
+
 ## Steps
 
 | Step | What it checks |

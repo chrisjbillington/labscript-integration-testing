@@ -29,6 +29,9 @@ from pathlib import Path
 HARNESS_DIR = Path(__file__).resolve().parent
 ROOT = HARNESS_DIR.parent
 CHECKS_DIR = HARNESS_DIR / 'checks'
+STACKDUMP_DIR = HARNESS_DIR / 'stackdump'
+# Time before a step's timeout at which its Python processes write their stacks, in s:
+STACKS_LEAD = 15
 
 # Components in installation order. The ref is the upstream default branch.
 COMPONENTS = {
@@ -366,6 +369,14 @@ def run_step(name, py, env, work, timeout):
     logfile = work / 'logs' / f'{name}.log'
     result = StepResult(name)
     t0 = time.time()
+    stacks = work / 'logs' / f'{name}-stacks'
+    stacks.mkdir(parents=True, exist_ok=True)
+    env = dict(env)
+    env['HARNESS_STACKS'] = str(stacks)
+    env['HARNESS_STACKS_AT'] = str(t0 + timeout - STACKS_LEAD)
+    env['PYTHONPATH'] = os.pathsep.join(
+        [str(STACKDUMP_DIR)] + [p for p in [env.get('PYTHONPATH')] if p]
+    )
     log(f'\n===== {name}')
     with open(logfile, 'w', encoding='utf8', errors='replace') as f:
         # The check is the leader of its own process group, so that the processes it
@@ -393,7 +404,17 @@ def run_step(name, py, env, work, timeout):
         # Processes that the check started and that are still running keep the pipe
         # open; wait briefly for the rest of the output and go on without it.
         reader.join(timeout=5)
+        if code is None:
+            for path in sorted(stacks.iterdir()):
+                text = path.read_text(encoding='utf8', errors='replace')
+                if text:
+                    header = f'\n===== stacks of {path.stem}, {STACKS_LEAD} s before the timeout\n'
+                    text = header + text
+                    f.write(text)
+                    sys.stdout.write(text)
         sys.stdout.flush()
+    if code is not None:
+        shutil.rmtree(stacks, ignore_errors=True)
     result.seconds = time.time() - t0
     if code == 0:
         result.status = 'passed'
