@@ -1,13 +1,15 @@
 """Run the lyse GUI in this process under the offscreen platform. Check that a shot file
 that has not been run is not loaded; that the results of single-shot routines appear in
 the dataframe and the shots table when the shot is analysed, analysed again, and analysed
-with a routine that fails after saving a result; that lyse code issues no
+with a routine that fails after saving a result; that a failing multishot routine
+does not pause analysis or stop the next multishot routine; that lyse code issues no
 DeprecationWarning when the results add columns to the dataframe; and exercise the Abort
 button: a routine that loops in Python and a routine that is blocked in a long sleep are
 interrupted and their workers survive; a routine that ignores the interrupt with an HDF5
 file open has its worker restarted once it closes the file, and the file is readable;
 analysis is paused in each case, and an interrupted worker then runs a routine to
-completion. In a subprocess, check that the
+completion; Abort of a multishot routine pauses analysis, the next multishot routine
+does not run, and resuming runs the multishot routines again. In a subprocess, check that the
 Edit columns dialog survives being updated as 200 columns are added one at a time. The Abort checks are reported as KNOWN when
 lyse has no Abort button."""
 
@@ -51,10 +53,12 @@ sleep_marker = routines_dir / 'sleep_routine.running'
 stubborn_script = routines_dir / 'stubborn_routine.py'
 stubborn_marker = routines_dir / 'stubborn_routine.running'
 stubborn_h5 = routines_dir / 'stubborn_routine.h5'
+multishot_sleep_script = routines_dir / 'multishot_sleep.py'
+multishot_sleep_marker = routines_dir / 'multishot_sleep.running'
 # Duration for which the stubborn routine keeps its HDF5 file open after the second
 # interrupt, which is sent when lyse tells the worker to quit:
 STUBBORN_HOLD = 8
-for path in [loop_marker, sleep_marker, stubborn_marker, stubborn_h5]:
+for path in [loop_marker, sleep_marker, stubborn_marker, stubborn_h5, multishot_sleep_marker]:
     path.unlink(missing_ok=True)
 loop_script.write_text(
     'import time\n'
@@ -67,6 +71,12 @@ sleep_script.write_text(
     'import time\n'
     'from pathlib import Path\n'
     f'Path({str(sleep_marker)!r}).touch()\n'
+    'time.sleep(600)\n'
+)
+multishot_sleep_script.write_text(
+    'import time\n'
+    'from pathlib import Path\n'
+    f'Path({str(multishot_sleep_marker)!r}).touch()\n'
     'time.sleep(600)\n'
 )
 stubborn_script.write_text(
@@ -273,6 +283,30 @@ try:
     shots_model._view.selectAll()
     shots_model.remove_selection(confirm=False)
 
+    multishot_box = app.multishot_routinebox
+    multishot_scripts = [routines_dir / 'multishot_fails.py', routines_dir / 'multishot_ok.py']
+    multishot_scripts[0].write_text('raise RuntimeError("multishot routine failed")\n')
+    multishot_scripts[1].write_text('import lyse\nlyse.data()\n')
+    multishot_box.add_routines([(str(path), QtCore.Qt.Checked) for path in multishot_scripts])
+    if not check(len(multishot_box.routines) == 2, 'the workers of both multishot routines started'):
+        finish()
+    # Requested while paused, so that resuming runs the multishot routines once:
+    filebox.on_run_multishot_analysis_clicked()
+    n_multishot = multishot_log.count
+    resume()
+    check(wait_until(lambda: multishot_log.count > n_multishot, 60),
+          'the multishot routines run when analysis is resumed')
+    wait_until(lambda: False, 2)
+    failed_routine, ok_routine = multishot_box.routines
+    check(failed_routine.error and ok_routine.done,
+          'after a multishot routine error, the next multishot routine runs: statuses '
+          f'error {failed_routine.error}, done {ok_routine.done}')
+    check(not filebox.analysis_paused, 'analysis is not paused after a multishot routine error')
+    check(multishot_log.count == n_multishot + 1,
+          f'the multishot routines ran once ({multishot_log.count - n_multishot} times)')
+    multishot_box.ui.treeView.selectAll()
+    multishot_box.remove_selection(confirm=False)
+
     # In a subprocess, since the failure is a crash:
     edit_columns_script = (
         'from qtutils.qt import QtWidgets\n'
@@ -382,6 +416,26 @@ try:
     check(wait_until(lambda: filebox.shots_model.get_first_incomplete() is None, 10),
           'the shot is marked as analysed')
     check(not filebox.analysis_paused, 'analysis is still running')
+
+    multishot_box.add_routines([(str(multishot_sleep_script), QtCore.Qt.Checked),
+                                (str(multishot_scripts[1]), QtCore.Qt.Checked)])
+    sleep_multishot_routine, ok_routine = multishot_box.routines
+    n_multishot = multishot_log.count
+    filebox.on_run_multishot_analysis_clicked()
+    check(wait_until(multishot_sleep_marker.exists, 120), 'the sleeping multishot routine started')
+    check(wait_until(lambda: sleep_multishot_routine.working, 10),
+          'the sleeping multishot routine is marked as working')
+    filebox.ui.pushButton_abort.click()
+    check(wait_until(lambda: multishot_log.count > n_multishot, ABORT_TIMEOUT + 30)
+          and sleep_multishot_routine.error, 'the sleeping multishot routine stopped after Abort')
+    check(filebox.analysis_paused and not ok_routine.done,
+          'after Abort, analysis is paused and the next multishot routine did not run')
+    multishot_sleep_script.write_text('print("completed")\n')
+    n_multishot = multishot_log.count
+    resume()
+    check(wait_until(lambda: multishot_log.count > n_multishot, 60)
+          and sleep_multishot_routine.done and ok_routine.done,
+          'resuming runs the multishot routines again')
 finally:
     app.terminate_all_workers()
     wait_until(lambda: all(app.workers_terminated().values()), 15)
