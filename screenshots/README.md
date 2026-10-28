@@ -77,8 +77,9 @@ not take mouse input, so that the image does not depend on the mouse pointer.
   not check the output values of the devices, so they start without hardware, and the
   analysis server is shown as responding. The queue is paused and has four shots; the
   tabs are in the top-left notebook, the other notebooks are collapsed, and the NI
-  card's tab is shown, with two digital outputs on and two analog outputs at values
-  other than zero.
+  card's tab is shown. Four of its digital outputs are inverted; of each four, two are
+  locked, and one of the locked and one of the unlocked outputs have their buttons
+  checked. Two analog outputs have values other than zero.
 - runmanager: the experiment script and the globals file, with every group open and
   active, and the `imaging` group shown.
 - lyse: the two single-shot and two multishot routines and the twelve shots, analysed.

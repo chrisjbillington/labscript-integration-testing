@@ -26,6 +26,14 @@ DigitalOut(name='oven_shutter', parent_device=ni_6733, connection='port0/line0')
 DigitalOut(name='zeeman_coils', parent_device=ni_6733, connection='port0/line1')
 DigitalOut(name='push_beam', parent_device=ni_6733, connection='port0/line2')
 DigitalOut(name='oven_heater', parent_device=ni_6733, connection='port0/line3')
+DigitalOut(name='mot_aom_switch', parent_device=ni_6733, connection='port0/line4',
+           inverted=True)
+DigitalOut(name='repump_aom_switch', parent_device=ni_6733, connection='port0/line5',
+           inverted=True)
+DigitalOut(name='probe_aom_switch', parent_device=ni_6733, connection='port0/line6',
+           inverted=True)
+DigitalOut(name='push_aom_switch', parent_device=ni_6733, connection='port0/line7',
+           inverted=True)
 
 NovaTechDDS9M(name='novatech', parent_device=novatech_clock, com_port='COM4')
 DDS(name='cooling_aom', parent_device=novatech, connection='channel 0')

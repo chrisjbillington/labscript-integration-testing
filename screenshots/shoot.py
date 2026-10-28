@@ -46,8 +46,10 @@ RUNVIEWER_PLOT_HEIGHT = 120
 RUNMANAGER_GROUP = 'imaging'
 BLACS_TAB = 'ni_6733'
 BLACS_QUEUED_SHOTS = 4
-# Digital outputs of BLACS_TAB that are on, and analog outputs with their values:
-BLACS_DIGITAL_OUTPUTS_ON = ['port0/line0', 'port0/line3']
+# Digital outputs of BLACS_TAB with their buttons checked, digital outputs that are
+# locked, and analog outputs with their values. Lines 4 to 7 are inverted.
+BLACS_BUTTONS_CHECKED = ['port0/line0', 'port0/line2', 'port0/line4', 'port0/line6']
+BLACS_OUTPUTS_LOCKED = ['port0/line2', 'port0/line3', 'port0/line6', 'port0/line7']
 BLACS_ANALOG_VALUES = {'ao0': 2.5, 'ao1': -0.4}
 RUNVIEWER_SHOT = 7
 RUNVIEWER_CHANNELS = ['camera_trigger', 'cooling_aom_amp', 'mot_coils', 'mot_shutter']
@@ -219,8 +221,11 @@ def setup_blacs(app):
         notebook.setCurrentIndex(index)
     tab = app.tablist[BLACS_TAB]
     notebook.setCurrentWidget(tab._ui)
-    for channel in BLACS_DIGITAL_OUTPUTS_ON:
-        tab.get_channel(channel).set_value(True)
+    for channel, output in tab._DO.items():
+        for button in output._widget_list:
+            button.setChecked(channel in BLACS_BUTTONS_CHECKED)
+        if channel in BLACS_OUTPUTS_LOCKED:
+            output.lock()
     for channel, value in BLACS_ANALOG_VALUES.items():
         tab.get_channel(channel).set_value(value)
     app.ui.tab_top_vertical_splitter.setSizes([1, 0])
