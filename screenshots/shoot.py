@@ -46,6 +46,9 @@ RUNVIEWER_PLOT_HEIGHT = 120
 RUNMANAGER_GROUP = 'imaging'
 BLACS_TAB = 'ni_6733'
 BLACS_QUEUED_SHOTS = 4
+# Digital outputs of BLACS_TAB that are on, and analog outputs with their values:
+BLACS_DIGITAL_OUTPUTS_ON = ['port0/line0', 'port0/line3']
+BLACS_ANALOG_VALUES = {'ao0': 2.5, 'ao1': -0.4}
 RUNVIEWER_SHOT = 7
 RUNVIEWER_CHANNELS = ['camera_trigger', 'cooling_aom_amp', 'mot_coils', 'mot_shutter']
 LYSE_COLUMNS = ['mot_load_time', 'tof', 'fit_cloud', 'check_saturation']
@@ -214,7 +217,12 @@ def setup_blacs(app):
     # until each has been the current tab once.
     for index in range(notebook.count()):
         notebook.setCurrentIndex(index)
-    notebook.setCurrentWidget(app.tablist[BLACS_TAB]._ui)
+    tab = app.tablist[BLACS_TAB]
+    notebook.setCurrentWidget(tab._ui)
+    for channel in BLACS_DIGITAL_OUTPUTS_ON:
+        tab.get_channel(channel).set_value(True)
+    for channel, value in BLACS_ANALOG_VALUES.items():
+        tab.get_channel(channel).set_value(value)
     app.ui.tab_top_vertical_splitter.setSizes([1, 0])
     app.ui.tab_horizontal_splitter.setSizes([1, 0])
     app.ui.main_splitter.setSizes([BLACS_QUEUE_WIDTH, width - BLACS_QUEUE_WIDTH])
