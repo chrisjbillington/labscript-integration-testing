@@ -1,13 +1,16 @@
 """Exercise the runmanager library API: globals file CRUD, evaluation, expansion, diff,
 run file creation and compilation of the runmanager_test fixture experiment."""
 
+import configparser
 import os
 import threading
 import time
+import warnings
+from pathlib import Path
 
 import numpy as np
 
-from _common import WORK, attempt, check, finish, load_state
+from _common import WORK, attempt, check, finish, labconfig, load_state
 
 import labscript_utils.h5_lock  # noqa: F401
 import h5py
@@ -187,6 +190,78 @@ tokens = runmanager.remove_comments_and_tokenify('a + 1 # c')
 check('c' not in tokens, f'remove_comments_and_tokenify {tokens!r}')
 check(runmanager.find_comments('a + 1 # c') == [(5, 9)], f"find_comments {runmanager.find_comments('a + 1 # c')}")
 check(isinstance(runmanager.globals_diff_groups(groups, groups), str), 'globals_diff_groups')
+
+# The namespace in which globals are evaluated. The names of `from pylab import *` give
+# a FutureWarning that names their numpy replacements, and are left out if
+# pylab_namespace is False in the [runmanager] section of the labconfig. The file named
+# by globals_namespace in that section adds names, and a file that cannot be loaded is
+# an error for every global.
+NAMESPACE_FEATURE = 'runmanager globals-namespace'
+gf3 = str(work / 'namespace.h5')
+runmanager.new_globals_file(gf3)
+runmanager.new_group(gf3, 'g')
+for name, value in [('from_pylab', 'linspace(0, 1, 3)'), ('from_numpy', 'np.linspace(0, 1, 3)'),
+                    ('unit', '2 * ms'), ('nested_sum', 'sum([[1, 2], [3, 4]])')]:
+    runmanager.new_global(gf3, 'g', name)
+    runmanager.set_value(gf3, 'g', name, value)
+namespace_file = work / 'namespace.py'
+namespace_file.write_text('from numpy import linspace\nhalf = 0.5\n')
+labconfig_path = Path(labconfig().config_path)
+labconfig_text = labconfig_path.read_text()
+
+
+def set_runmanager_options(**options):
+    config = configparser.ConfigParser(interpolation=None)
+    config.read_string(labconfig_text)
+    for option, value in options.items():
+        config.set('runmanager', option, value)
+    with open(labconfig_path, 'w') as f:
+        config.write(f)
+
+
+def evaluate_namespace_globals(global_names=('from_pylab', 'from_numpy', 'unit', 'nested_sum')):
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter('always')
+        evaluated, _, _ = runmanager.evaluate_globals(
+            runmanager.get_globals(runmanager.get_all_groups(gf3)), raise_exceptions=False)
+    messages = [str(w.message) for w in caught if issubclass(w.category, FutureWarning)]
+    return {name: evaluated['g'][name] for name in global_names}, '\n'.join(messages)
+
+
+try:
+    values, message = evaluate_namespace_globals()
+    if check('from_pylab: ' in message, f'pylab names give a FutureWarning: {message!r}',
+             known=NAMESPACE_FEATURE):
+        check(np.array_equal(values['from_pylab'], [0, 0.5, 1]) and np.array_equal(values['from_numpy'], [0, 0.5, 1])
+              and values['unit'] == 0.002 and values['nested_sum'] == 10,
+              f'globals evaluate with the pylab names: {values}')
+        check('np.linspace' in message and 'nested_sum: ' in message and 'np.sum' in message
+              and 'from_numpy: ' not in message and 'unit: ' not in message,
+              f'the warning names the globals that use pylab names and the numpy replacements: {message!r}')
+
+        set_runmanager_options(pylab_namespace='False')
+        values, message = evaluate_namespace_globals()
+        check(isinstance(values['from_pylab'], NameError) and np.array_equal(values['from_numpy'], [0, 0.5, 1])
+              and values['unit'] == 0.002 and isinstance(values['nested_sum'], TypeError) and not message,
+              f'with pylab_namespace = False, pylab names are undefined and sum is the builtin: {values}, '
+              f'{message!r}')
+
+        set_runmanager_options(globals_namespace=str(namespace_file))
+        runmanager.new_global(gf3, 'g', 'from_file')
+        runmanager.set_value(gf3, 'g', 'from_file', 'half')
+        values, message = evaluate_namespace_globals(('from_pylab', 'from_file', 'nested_sum'))
+        check(np.array_equal(values['from_pylab'], [0, 0.5, 1]) and values['from_file'] == 0.5
+              and 'from_pylab: ' not in message and 'nested_sum: ' in message,
+              f'names from the globals_namespace file take precedence over the pylab names: {values}, '
+              f'{message!r}')
+
+        missing_file = work / 'missing.py'
+        set_runmanager_options(globals_namespace=str(missing_file))
+        values, _ = evaluate_namespace_globals(('from_numpy', 'unit'))
+        check(all(isinstance(value, Exception) and str(missing_file) in str(value) for value in values.values()),
+              f'a globals_namespace file that does not exist is an error for every global: {values}')
+finally:
+    labconfig_path.write_text(labconfig_text)
 
 # Run files
 out = str(work / 'sequence')
