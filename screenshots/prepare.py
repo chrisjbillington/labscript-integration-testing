@@ -35,7 +35,7 @@ GLOBALS = [
     ('molasses', 'molasses_time', '5', 'ms', ''),
     ('molasses', 'molasses_detuning', '-45', 'MHz', ''),
     ('molasses', 'molasses_power', '0.35', '', ''),
-    ('imaging', 'tof', 'linspace(1, 11, 6)', 'ms', 'outer'),
+    ('imaging', 'tof', 'np.linspace(1, 11, 6)', 'ms', 'outer'),
     ('imaging', 'imaging_detuning', '0', 'MHz', ''),
     ('imaging', 'imaging_power', '0.15', '', ''),
     ('imaging', 'exposure_time', '200', 'us', ''),
