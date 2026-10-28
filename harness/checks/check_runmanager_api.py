@@ -196,7 +196,7 @@ check(isinstance(runmanager.globals_diff_groups(groups, groups), str), 'globals_
 # pylab_namespace is False in the [runmanager] section of the labconfig. The file named
 # by globals_namespace in that section adds names, and a file that cannot be loaded is
 # an error for every global.
-NAMESPACE_FEATURE = 'runmanager globals-namespace'
+NAMESPACE_FEATURE = 'runmanager #163'
 gf3 = str(work / 'namespace.h5')
 runmanager.new_globals_file(gf3)
 runmanager.new_group(gf3, 'g')
