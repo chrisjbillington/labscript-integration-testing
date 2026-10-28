@@ -8,27 +8,37 @@ little empty space.
 
 ## On GitHub Actions
 
-`.github/workflows/screenshots.yml` takes the images on Windows, and on macOS with
-`oses` set to `["macos-latest"]` or `["windows-latest", "macos-latest"]`. Dispatch it with
+`.github/workflows/screenshots.yml` takes the images on the runners listed in `oses`
+(`windows-latest` by default; also `macos-latest` and `ubuntu-latest`). Dispatch it with
 the refs of the change in `after`, in the form that `test.yml` takes:
 
 ```
 gh workflow run screenshots.yml -R chrisjbillington/labscript-integration-testing \
-    -f after="labscript-utils=pr/151 runmanager=pr/154"
+    -f after="labscript-utils=pr/151 runmanager=pr/154" \
+    -f oses='["windows-latest", "macos-latest", "ubuntu-latest"]'
 ```
 
-It has one job for each runner, each Qt binding and each of two sets: "before", with the default
-branches or the refs in `before`, and "after", with the refs in `after`. The before set
-is taken with the default style and with Fusion, and the after set with the styles in
-`after_styles`. On Windows, each job takes the light images with Windows in light mode and
-the dark images with Windows in dark mode. On macOS, PyQt5 has light images only, since
-Qt 5 there does not follow a dark mode set with `defaults write -g AppleInterfaceStyle
-Dark` on the runner. Each job uploads the images as the artifact
-`screenshots-<runner>-<set>-<binding>`:
+It has one job for each runner, each Qt binding and each set in `sets`: "before", with
+the default branches or the refs in `before`, and "after", with the refs in `after`. The
+before set is taken with the default style and with Fusion, and the after set with the
+styles in `after_styles`. Each job takes light and dark images, except that PyQt5 has
+light images only unless `pyqt5_dark` is set, which works on Windows only. `scale` sets
+`QT_SCALE_FACTOR`, for example `2` for images at twice the pixel density. Each job
+uploads the images as the artifact `screenshots-<runner>-<set>-<binding>-<scale>x`:
 
 ```
 gh run download RUN_ID -R chrisjbillington/labscript-integration-testing -D DIR
 ```
+
+- Windows: the dark images are taken with Windows in dark mode, which PyQt5's dark
+  palette requires.
+- macOS: the runner's display has a device pixel ratio of 1. Qt 5 does not follow a dark
+  mode set with `defaults write -g AppleInterfaceStyle Dark` on the runner.
+- Linux: the applications run on Xvfb at 1920 by 1080, with `XDG_CURRENT_DESKTOP` set to
+  GNOME and a D-Bus session, so that Qt 6 uses its GTK platform theme. Before each scheme
+  the workflow writes `~/.config/gtk-3.0/settings.ini` with Ubuntu's default theme, `Yaru`
+  or `Yaru-dark`, and font, Ubuntu Sans 11. The PyQt5 wheels have no GTK platform theme,
+  and PyQt5 uses Fusion's own palette and Qt's fallback font.
 
 ## Locally
 
