@@ -32,6 +32,11 @@ CHECKS_DIR = HARNESS_DIR / 'checks'
 STACKDUMP_DIR = HARNESS_DIR / 'stackdump'
 # Time before a step's timeout at which its Python processes write their stacks, in s:
 STACKS_LEAD = 15
+# Time for which the harness waits for processes started by earlier steps to write their
+# stacks, in s:
+STACKS_REQUEST_WAIT = 3
+# Stacks directories of the steps that finished, deleted after each step:
+PASSED_STACKS = []
 
 # Components in installation order. The ref is the upstream default branch.
 COMPONENTS = {
@@ -364,6 +369,21 @@ def kill_tree(proc):
     proc.wait()
 
 
+def write_stacks_state(work, text):
+    """Replace the file that tells the processes of every step which step is running and
+    whether to write their stacks."""
+    tmp = work / 'stacks-state.tmp'
+    tmp.write_text(text)
+    for _ in range(50):
+        try:
+            os.replace(tmp, work / 'stacks-state')
+            return
+        except PermissionError:
+            # Windows: a process is reading the file.
+            time.sleep(0.1)
+    os.replace(tmp, work / 'stacks-state')
+
+
 def run_step(name, py, env, work, timeout):
     script = CHECKS_DIR / ('check_' + name.replace('-', '_') + '.py')
     logfile = work / 'logs' / f'{name}.log'
@@ -374,6 +394,8 @@ def run_step(name, py, env, work, timeout):
     env = dict(env)
     env['HARNESS_STACKS'] = str(stacks)
     env['HARNESS_STACKS_AT'] = str(t0 + timeout - STACKS_LEAD)
+    env['HARNESS_STACKS_STATE'] = str(work / 'stacks-state')
+    write_stacks_state(work, f'{stacks}\n')
     env['PYTHONPATH'] = os.pathsep.join(
         [str(STACKDUMP_DIR)] + [p for p in [env.get('PYTHONPATH')] if p]
     )
@@ -399,6 +421,8 @@ def run_step(name, py, env, work, timeout):
         try:
             code = proc.wait(timeout=timeout)
         except subprocess.TimeoutExpired:
+            write_stacks_state(work, f'{stacks}\ndump\n')
+            time.sleep(STACKS_REQUEST_WAIT)
             kill_tree(proc)
             code = None
         # Processes that the check started and that are still running keep the pipe
@@ -408,13 +432,16 @@ def run_step(name, py, env, work, timeout):
             for path in sorted(stacks.iterdir()):
                 text = path.read_text(encoding='utf8', errors='replace')
                 if text:
-                    header = f'\n===== stacks of {path.stem}, {STACKS_LEAD} s before the timeout\n'
-                    text = header + text
+                    text = f'\n===== stacks of {path.stem}\n' + text
                     f.write(text)
                     sys.stdout.write(text)
         sys.stdout.flush()
+    # On Windows, a process that was started by an earlier step and is still running
+    # holds its file in that step's directory open until it reads the new state.
     if code is not None:
-        shutil.rmtree(stacks, ignore_errors=True)
+        PASSED_STACKS.append(stacks)
+    for d in PASSED_STACKS:
+        shutil.rmtree(d, ignore_errors=True)
     result.seconds = time.time() - t0
     if code == 0:
         result.status = 'passed'

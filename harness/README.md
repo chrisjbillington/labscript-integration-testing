@@ -86,13 +86,14 @@ applications and their subprocesses print exceptions to stderr instead of openin
 error window. labscript-utils releases before 3.5.0 ignore the variable.
 
 Each step runs with `harness/stackdump/` first on `PYTHONPATH`. The `sitecustomize`
-module there makes every Python process of the step that is still running 15 s before
-the step's timeout write the stack of each of its threads to
-`logs/<step>-stacks/<pid>-<script>.txt` with `faulthandler`. When a step times out, the
-harness appends these stacks to the step's log. When a step finishes, the harness
-deletes the directory. A process that keeps running after its step, such as a zlock or
-zlog server, writes its stacks at the same time after the step's start. On Windows the
-files of such processes cannot be deleted while they run, and are left in the directory.
+module there makes every Python process that the step starts write the stack of each of
+its threads with `faulthandler` to `logs/<step>-stacks/<pid>-<script>.txt` if it is still
+running 15 s before the step's timeout. When a step times out, the processes that earlier
+steps started and that are still running, such as the zlock and zlog servers, write their
+stacks to the same directory, and the harness then appends every file there to the
+step's log. The harness tells these processes which step is running through the file
+`stacks-state` in the work directory, and deletes the stacks directory of each step that
+finishes.
 
 ## Steps
 
