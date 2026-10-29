@@ -163,9 +163,10 @@ language is Python, each `.py` file that a `literalinclude` names, and each `.py
 other than `conf.py`. An example that contains both `start()` and `stop(` is a complete
 experiment script and is compiled through runmanager as a single shot with no globals in
 the harness profile, as the `compile` step compiles the example experiment. Any other
-example is a fragment and is not compiled. To show a part of a script in the docs, leave
-out `start()` or `stop()`; a block that has both must compile on its own, with its imports
-and device definitions.
+example is a fragment and is not compiled. A block that has both must compile on its own,
+with its imports and device definitions, unless it is marked as a fragment: in a `.rst`
+file, the last line before its directive is the comment `.. fragment`, and in a `.md`
+file, the last line before its fence is `<!-- fragment -->`.
 
 The builds fetch the intersphinx inventories from the web. In the network namespace of
 the recipe in [The profile](#the-profile) they cannot, and every build warns about each
