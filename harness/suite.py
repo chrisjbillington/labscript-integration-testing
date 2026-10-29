@@ -11,6 +11,11 @@ each application.
     python harness/suite.py install --python 3.14
     python harness/suite.py test
 
+and builds the Sphinx docs of the components and compiles their example scripts:
+
+    python harness/suite.py install --python 3.11 --qt PyQt5 --docs
+    python harness/suite.py docs --python 3.11
+
 Run `python harness/suite.py <command> --help` for the options. `harness/README.md`
 describes the steps and the ref specs.
 """
@@ -18,6 +23,7 @@ describes the steps and the ref specs.
 import argparse
 import json
 import os
+import re
 import signal
 import threading
 import shutil
@@ -95,6 +101,15 @@ STEPS = [
     ('zprocess-tests', []),
 ]
 DEFAULT_SKIP = ['zprocess-tests']
+
+# The steps of the `docs` command.
+DOCS_STEPS = [
+    ('profile', []),
+    ('docs', ['profile']),
+    ('docs-examples', ['profile']),
+]
+
+QT_PACKAGES = {name.lower() for name in QT_BINDINGS}
 
 
 def log(msg):
@@ -305,6 +320,31 @@ def installed_components(repos_dir):
     return components
 
 
+def docs_requirements(repos_dir):
+    """The requirements of the `docs` extras of the components, without the Qt bindings,
+    and with one pin for each package: the pin that the most components give."""
+    import tomllib
+
+    pins = {}
+    requirements = []
+    for name in COMPONENTS:
+        pyproject = repos_dir / name / 'pyproject.toml'
+        if not pyproject.exists():
+            continue
+        extras = tomllib.loads(pyproject.read_text())['project'].get('optional-dependencies', {})
+        for requirement in extras.get('docs', []):
+            package = re.match(r'[A-Za-z0-9._-]+', requirement).group().lower().replace('_', '-')
+            if package in QT_PACKAGES:
+                continue
+            if '==' in requirement:
+                pins.setdefault(package, []).append(requirement.replace(' ', ''))
+            elif requirement not in requirements:
+                requirements.append(requirement)
+    for package, given in pins.items():
+        requirements.append(max(given, key=given.count))
+    return requirements
+
+
 def cmd_install(args):
     repos_dir = Path(args.repos_dir)
     venv = Path(args.venv or default_venv(args.python)).resolve()
@@ -319,6 +359,8 @@ def cmd_install(args):
     env = dict(os.environ, SETUPTOOLS_SCM_PRETEND_VERSION=PRETEND_VERSION)
     requirements = [str(repos_dir / n) for n in COMPONENTS]
     requirements += QT_REQUIREMENTS[args.qt] + ['pytest', HARVESTERS_REQUIREMENT] + args.pin
+    if args.docs:
+        requirements += docs_requirements(repos_dir)
     result = run(uv + ['pip', 'install', '--python', py] + requirements, env=env)
     components = installed_components(repos_dir)
     version = subprocess.run([str(py), '-c', 'import platform; print(platform.python_version())'],
@@ -327,6 +369,7 @@ def cmd_install(args):
         'python': version or args.python,
         'qt': args.qt,
         'pins': args.pin,
+        'docs': args.docs,
         'repos_dir': str(repos_dir.resolve()),
         'install_ok': result.returncode == 0,
         'components': components,
@@ -480,12 +523,18 @@ def write_report(results, info, manifest, path):
         else:
             ref = 'existing clone'
         lines.append(f"| {name} | {ref} | {m['commit'][:10]} |")
+    for r in results:
+        step_summary = path.parent / f'summary-{r.name}.md'
+        if step_summary.exists():
+            lines += ['', step_summary.read_text(encoding='utf8').rstrip()]
     text = '\n'.join(lines) + '\n'
     path.write_text(text)
     return text
 
 
-def cmd_test(args):
+def open_venv(args):
+    """The interpreter and harness.json of the venv of the test or docs command, after
+    checking that the clones have not changed since it was installed."""
     venv = Path(args.venv or default_venv(args.python)).resolve()
     py = venv_python(venv)
     if not py.exists():
@@ -501,9 +550,15 @@ def cmd_test(args):
     if changed:
         raise SystemExit(f'the clones in {repos_dir} have changed since {venv} was installed: '
                          f'{", ".join(changed)}; run install again')
+    return venv, py, info
+
+
+def run_steps(args, venv, py, info, steps, selected):
+    """Run the steps of `steps` that are in `selected`, write the report and exit with
+    status 1 if a step failed."""
     manifest = info.get('components')
     if manifest is None:
-        manifest_path = repos_dir / 'manifest.json'
+        manifest_path = Path(info['repos_dir']) / 'manifest.json'
         manifest = json.loads(manifest_path.read_text()) if manifest_path.exists() else {}
     work = Path(args.work or (venv.parent / f'work-{venv.name}')).resolve()
     if work.exists():
@@ -511,15 +566,9 @@ def cmd_test(args):
     (work / 'logs').mkdir(parents=True)
     env = step_env(info, work)
 
-    selected = [s for s, _ in STEPS]
-    if args.step:
-        selected = [s for s in selected if s in args.step]
-    skip = set(args.skip) | (set() if args.step or args.all else set(DEFAULT_SKIP))
-    selected = [s for s in selected if s not in skip]
-
     results = []
     passed = set()
-    for name, needs in STEPS:
+    for name, needs in steps:
         if name not in selected:
             continue
         unmet = [n for n in needs if n not in passed and n in selected]
@@ -544,6 +593,27 @@ def cmd_test(args):
     sys.exit(1 if failed else 0)
 
 
+def cmd_test(args):
+    venv, py, info = open_venv(args)
+    selected = [s for s, _ in STEPS]
+    if args.step:
+        selected = [s for s in selected if s in args.step]
+    skip = set(args.skip) | (set() if args.step or args.all else set(DEFAULT_SKIP))
+    selected = [s for s in selected if s not in skip]
+    run_steps(args, venv, py, info, STEPS, selected)
+
+
+def cmd_docs(args):
+    venv, py, info = open_venv(args)
+    if not info.get('docs'):
+        raise SystemExit(f'{venv} was installed without the docs requirements; '
+                         'run install with --docs')
+    selected = [s for s, _ in DOCS_STEPS]
+    if args.step:
+        selected = [s for s in selected if s in args.step]
+    run_steps(args, venv, py, info, DOCS_STEPS, selected)
+
+
 # ---------------------------------------------------------------------------
 
 
@@ -566,6 +636,8 @@ def main():
     p.add_argument('--qt', default='PySide6', choices=QT_BINDINGS)
     p.add_argument('--pin', action='append', default=[], metavar='REQUIREMENT',
                    help='extra requirement, for example "numpy<2.5"; repeatable')
+    p.add_argument('--docs', action='store_true',
+                   help='also install the requirements of the docs extras of the components')
     p.set_defaults(func=cmd_install)
 
     p = sub.add_parser('test', help='run the checks in a virtual environment made by install')
@@ -580,8 +652,18 @@ def main():
     p.add_argument('--timeout', type=int, default=900, help='seconds per step')
     p.set_defaults(func=cmd_test)
 
+    p = sub.add_parser('docs', help='build the docs of the components and compile their '
+                                    'example scripts in a venv made by install --docs')
+    p.add_argument('--python', help='version given to install, to find the default venv')
+    p.add_argument('--venv')
+    p.add_argument('--work', help='directory for logs, the built docs and the report')
+    p.add_argument('--step', action='append', default=[], choices=[s for s, _ in DOCS_STEPS],
+                   help='run only these steps; repeatable')
+    p.add_argument('--timeout', type=int, default=1800, help='seconds per step')
+    p.set_defaults(func=cmd_docs)
+
     args = parser.parse_args()
-    if args.command in ('install', 'test') and not args.venv and not args.python:
+    if args.command in ('install', 'test', 'docs') and not args.venv and not args.python:
         parser.error('--python or --venv is required')
     args.func(args)
 

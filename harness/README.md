@@ -10,9 +10,13 @@ lyse, and that the camera workers save their images. It uses pip
 and uv only. Conda is not used: conda installs on Windows runners are slow, and
 conda-specific checks are left until a release is close.
 
+The harness also builds the Sphinx docs of the components and compiles the example
+experiment scripts in them; see [Docs](#docs).
+
 The GitHub Actions workflow `.github/workflows/test.yml` runs the harness on Ubuntu and
 Windows for Python 3.11 to 3.14 with PySide6, PyQt6 and PyQt5 weekly and on demand with
-chosen component refs, Qt bindings, Pythons and runners. The weekly run also tests Python 3.15, and its 3.15 jobs may fail. A dispatch
+chosen component refs, Qt bindings, Pythons and runners, and builds the docs in one more
+job on Ubuntu with Python 3.11 and PyQt5. The weekly run also tests Python 3.15, and its 3.15 jobs may fail. A dispatch
 with the same inputs as a queued or running dispatch cancels the jobs of that run.
 
 ## Usage
@@ -21,6 +25,8 @@ with the same inputs as a queued or running dispatch cancels the jobs of that ru
 python harness/suite.py clone [name=[owner/repo@]ref ...]
 python harness/suite.py install --python 3.14 [--qt PySide6|PyQt6|PyQt5] [--pin "numpy<2.5"]
 python harness/suite.py test --python 3.14 [--step NAME] [--skip NAME] [--all]
+python harness/suite.py install --python 3.11 --qt PyQt5 --docs --venv harness/venvs/docs
+python harness/suite.py docs --venv harness/venvs/docs [--step NAME]
 ```
 
 `clone` puts the components in `repos/` (`--repos-dir` to change). A component with no
@@ -131,6 +137,39 @@ are marked as known for blacs #145, and the checks of a fatal error and of the s
 button for blacs #146, with the stop button checks run only when the tab has one. The
 `runmanager-abort` checks of the Abort button and of the time taken and exit status
 after Restart subprocess are marked as known for runmanager #152.
+
+## Docs
+
+`install --docs` also installs the requirements of the `docs` extras of the components,
+except the Qt bindings, in the same resolver run. Where the components pin a package to
+different versions, the pin that the most components give is installed. `docs` runs the
+steps below in a venv installed with `--docs`, in the same way as `test`, with the
+report, the logs and the built docs in the same work directory as `test` (`--work` to
+change). The
+docs extras of the components require PyQt5, so the docs venv is installed with
+`--qt PyQt5`. The workflow uses Python 3.11, which is the Python version in the
+`readthedocs.yaml` of most components.
+
+| Step | What it checks |
+|---|---|
+| `profile` | As for `test` |
+| `docs` | The docs of each component that has a `readthedocs.yaml` build with `sphinx-build -b dirhtml -n` in the directory of the `conf.py` that the file names, with `READTHEDOCS=True` and `READTHEDOCS_VERSION=latest`. Each component is copied to `docs/src/` in the work directory without its git directory and built there, and the HTML is written to `docs/html/`. The step fails if a build exits with a nonzero status, and does not fail on warnings. The report has, for each component, the exit status, the number of warnings, the number of warnings that are not "reference target not found", the requirements of the component's `docs` extra that the venv does not meet, and the warnings that are not "reference target not found" in full. Each build's output is in `logs/docs-<component>.log` and its warnings in `logs/docs-<component>-warnings.txt` |
+| `docs-examples` | The example experiment scripts in the docs and labscript's `example.py` compile; the step fails if one does not compile. The report lists each script with the error of each one that does not compile, and the log lists the fragments |
+
+The examples are found in the Sphinx source directory of each component, the directory
+of its `conf.py`: each code block of a `.rst` or `.md` file with the language `python`,
+`python3` or `py`, each literal block (`::`) of a `.rst` file in which the highlight
+language is Python, each `.py` file that a `literalinclude` names, and each `.py` file
+other than `conf.py`. An example that contains both `start()` and `stop(` is a complete
+experiment script and is compiled through runmanager as a single shot with no globals in
+the harness profile, as the `compile` step compiles the example experiment. Any other
+example is a fragment and is not compiled. To show a part of a script in the docs, leave
+out `start()` or `stop()`; a block that has both must compile on its own, with its imports
+and device definitions.
+
+The builds fetch the intersphinx inventories from the web. In the network namespace of
+the recipe in [The profile](#the-profile) they cannot, and every build warns about each
+inventory.
 
 ## The profile
 

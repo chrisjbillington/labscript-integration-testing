@@ -3,6 +3,7 @@ working directory set to the work directory."""
 
 import json
 import os
+import re
 import socket
 import subprocess
 import sys
@@ -56,6 +57,18 @@ def attempt(msg, func, *args, **kwargs):
 def finish():
     print(f'\n{_failures} failure(s)', flush=True)
     sys.exit(1 if _failures else 0)
+
+
+def sphinx_configuration(repo):
+    """The path of conf.py, relative to the repository, in the Read the Docs configuration of
+    the repository, or None."""
+    for name in ['readthedocs.yaml', '.readthedocs.yaml', 'readthedocs.yml', '.readthedocs.yml']:
+        path = repo / name
+        if path.exists():
+            match = re.search(r'^\s*configuration:\s*(\S+)', path.read_text(), re.MULTILINE)
+            if match:
+                return match.group(1)
+    return None
 
 
 def load_state():
