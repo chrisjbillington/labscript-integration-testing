@@ -138,6 +138,15 @@ button for blacs #146, with the stop button checks run only when the tab has one
 `runmanager-abort` checks of the Abort button and of the time taken and exit status
 after Restart subprocess are marked as known for runmanager #152.
 
+A check that fails on the current default branches of the components can also be
+marked as known without changing its script, in `known-failures.toml`. Each entry gives
+a step, a regular expression and the public issue or pull request that fixes the
+failure. A failed check of that step with a message that matches the expression is
+marked `KNOWN` and does not fail the step. A step that has an entry that matches none of
+its failed checks prints `FIXED` with the entry, so that the entry can be removed. The
+Detail column of the report gives the number of `KNOWN` and `FIXED` lines in the log of
+each step.
+
 ## Docs
 
 `install --docs` also installs the requirements of the `docs` extras of the components,

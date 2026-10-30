@@ -1,0 +1,10 @@
+# Checks that fail on the current default branches of the components. A failed check of
+# the step `step` with a message that matches the regular expression `check` is reported
+# as KNOWN with `issue`, the public issue or pull request that fixes it, and does not
+# fail the step. When no check of the step matches an entry, the step reports the entry
+# as FIXED so that it can be removed. For example:
+#
+# [[failure]]
+# step = "docs-examples"
+# check = '^labscript-devices/docs/source/devices/pulseblaster\.rst:25 compiles'
+# issue = "labscript-devices #182"

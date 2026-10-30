@@ -8,6 +8,7 @@ import socket
 import subprocess
 import sys
 import time
+import tomllib
 import traceback
 from pathlib import Path
 
@@ -16,22 +17,38 @@ REPOS = Path(os.environ['HARNESS_REPOS'])
 FIXTURES = Path(os.environ['HARNESS_FIXTURES'])
 SHOTS = WORK / 'shots'
 STATE = WORK / 'state.json'
+STEP = os.environ.get('HARNESS_STEP')
+KNOWN_FAILURES = [
+    entry for entry in tomllib.loads(
+        (Path(__file__).resolve().parent.parent / 'known-failures.toml').read_text(encoding='utf8')
+    ).get('failure', [])
+    if entry['step'] == STEP
+]
 
 # Written into a profile directory that the harness created, so that a later run may
 # delete it. A profile without this file is never touched.
 PROFILE_MARKER = '.created-by-labscript-test-harness'
 
 _failures = 0
+# Entries of KNOWN_FAILURES that matched a failed check:
+_matched = []
 
 
 def check(cond, msg, known=None):
     """Record a check. `known` names an open bug that makes the check fail; the failure
     is then reported as KNOWN and not counted, and a pass is reported as FIXED so that the
-    marker can be removed."""
+    marker can be removed. A failure that matches an entry of `known-failures.toml` is
+    reported as KNOWN with the entry's issue."""
     global _failures
     if known is not None:
         print(('FIXED ' if cond else 'KNOWN ') + msg + f' [{known}]', flush=True)
         return bool(cond)
+    if not cond:
+        for entry in KNOWN_FAILURES:
+            if re.search(entry['check'], msg):
+                _matched.append(entry)
+                print(f'KNOWN {msg} [{entry["issue"]}]', flush=True)
+                return False
     print(('PASS ' if cond else 'FAIL ') + msg, flush=True)
     if not cond:
         _failures += 1
@@ -55,6 +72,10 @@ def attempt(msg, func, *args, **kwargs):
 
 
 def finish():
+    for entry in KNOWN_FAILURES:
+        if entry not in _matched:
+            print(f'FIXED no check matches the known failure {entry["check"]!r} '
+                  f'[{entry["issue"]}]', flush=True)
     print(f'\n{_failures} failure(s)', flush=True)
     sys.exit(1 if _failures else 0)
 

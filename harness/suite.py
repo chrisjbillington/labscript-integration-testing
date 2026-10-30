@@ -442,6 +442,7 @@ def run_step(name, py, env, work, timeout):
     env['HARNESS_STACKS'] = str(stacks)
     env['HARNESS_STACKS_AT'] = str(t0 + timeout - STACKS_LEAD)
     env['HARNESS_STACKS_STATE'] = str(work / 'stacks-state')
+    env['HARNESS_STEP'] = name
     write_stacks_state(work, f'{stacks}\n')
     env['PYTHONPATH'] = os.pathsep.join(
         [str(STACKDUMP_DIR)] + [p for p in [env.get('PYTHONPATH')] if p]
@@ -498,6 +499,10 @@ def run_step(name, py, env, work, timeout):
     else:
         result.status = 'failed'
         result.detail = f'exit code {code}'
+    markers = logfile.read_text(encoding='utf8', errors='replace').splitlines()
+    counts = [f'{n} {word.lower()}' for word in ['KNOWN', 'FIXED']
+              if (n := sum(line.startswith(word + ' ') for line in markers))]
+    result.detail = ', '.join([d for d in [result.detail] if d] + counts)
     log(f'===== {name}: {result.status} in {result.seconds:.0f} s {result.detail}')
     return result
 
