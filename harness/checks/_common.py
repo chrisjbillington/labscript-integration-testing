@@ -138,8 +138,8 @@ def start_app(app, name=None):
 
 
 def stop_app(proc):
-    """Kill the application. On Linux the applications do not act on SIGTERM while the
-    main thread is in the Qt event loop."""
+    """Kill the application. On Linux an application that shows a modal message box,
+    as a second copy does, does not act on SIGTERM until the box is closed."""
     if proc.poll() is None:
         proc.kill()
         proc.wait()
