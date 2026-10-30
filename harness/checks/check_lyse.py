@@ -24,6 +24,23 @@ star = {}
 exec('from lyse import *', star)
 check('path' in star and 'Run' in star and 'data' in star, 'star import provides path, Run and data')
 check('spinning_top' in star, 'star import provides spinning_top')
+check(getattr(lyse, 'Plot', None) is object and getattr(lyse, 'plots', None) == {},
+      'lyse.Plot is object and lyse.plots is empty outside the analysis subprocess')
+check(callable(getattr(lyse, 'figure_to_clipboard', None)), 'lyse.figure_to_clipboard exists')
+check({'Plot', 'plots', 'figure_to_clipboard'} <= set(star),
+      'star import provides Plot, plots and figure_to_clipboard')
+# The analysis subprocess sets these names in lyse.utils.worker before it runs a routine:
+import lyse.utils.worker  # noqa: E402
+
+
+class _Plot:
+    pass
+
+
+lyse.utils.worker.Plot = _Plot
+check(getattr(lyse, 'Plot', None) is _Plot,
+      'lyse.Plot is the class that the analysis subprocess sets')
+lyse.utils.worker.Plot = object
 
 run = lyse.Run(shot)
 run.set_group('harness')

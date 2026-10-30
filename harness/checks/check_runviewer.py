@@ -15,7 +15,8 @@ import runviewer.__main__ as rv  # noqa: E402
 from labscript_utils import device_registry  # noqa: E402
 from labscript_utils.connections import ConnectionTable  # noqa: E402
 
-shot_path = load_state()['example_shot']
+state = load_state()
+shot_path = state['example_shot']
 
 
 class Capture(logging.Handler):
@@ -92,4 +93,14 @@ labels = {m['label'].decode() if isinstance(m['label'], bytes) else str(m['label
           for m in markers.values()}
 check('Start' in labels and 'End' in labels, f'marker labels {sorted(labels)}')
 check(len(shot.channels) == len(traces), f'{len(shot.channels)} channels')
+
+# The shot of the compile step with a DummyIntermediateDevice with no outputs:
+if state.get('empty_device_shot') is not None:
+    capture.records.clear()
+    empty_shot = rv.Shot(state['empty_device_shot'])
+    empty_shot.traces
+    failed = [m for m in capture.records if m.startswith('Failed to load device')]
+    for m in failed:
+        print('runviewer log:', m.splitlines()[0])
+    check(not failed, 'the parser of a DummyIntermediateDevice with no outputs ran without error')
 finish()

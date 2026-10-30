@@ -7,7 +7,7 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-from _common import SHOTS, attempt, check, finish, labconfig, save_state
+from _common import SHOTS, WORK, attempt, check, finish, labconfig, save_state
 
 import labscript_utils.h5_lock  # noqa: F401
 import h5py
@@ -84,5 +84,26 @@ with h5py.File(run_file, 'r') as f:
 with h5py.File(run_file, 'r+') as f:
     f.attrs['run time'] = datetime.now().astimezone().strftime('%Y%m%dT%H%M%S.%f%z')
 
-save_state(connection_table_h5=ct_h5, example_shot=run_file, example_script=script)
+# A DummyIntermediateDevice with no outputs:
+empty_script = WORK / 'empty_intermediate_device.py'
+empty_script.write_text(
+    'from labscript import start, stop\n'
+    'from labscript_devices.DummyPseudoclock.labscript_devices import DummyPseudoclock\n'
+    'from labscript_devices.DummyIntermediateDevice.labscript_devices import (\n'
+    '    DummyIntermediateDevice,\n'
+    ')\n'
+    "DummyPseudoclock(name='pseudoclock')\n"
+    "DummyIntermediateDevice(name='intermediate_device', parent_device=pseudoclock.clockline)\n"
+    'start()\n'
+    'stop(1)\n'
+)
+empty_shot = str(SHOTS / 'empty_intermediate_device.h5')
+sequence_attrs, _, _ = runmanager.new_sequence_details(str(empty_script), config=config,
+                                                       increment_sequence_index=False)
+runmanager.make_single_run_file(empty_shot, {}, {}, sequence_attrs, 0, 1)
+empty_ok = check(compile_script(str(empty_script), empty_shot),
+                 'an experiment with a DummyIntermediateDevice with no outputs compiles')
+
+save_state(connection_table_h5=ct_h5, example_shot=run_file, example_script=script,
+           empty_device_shot=empty_shot if empty_ok else None)
 finish()

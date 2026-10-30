@@ -8,3 +8,13 @@
 # step = "docs-examples"
 # check = '^labscript-devices/docs/source/devices/pulseblaster\.rst:25 compiles'
 # issue = "labscript-devices #182"
+
+[[failure]]
+step = "compile"
+check = '^an experiment with a DummyIntermediateDevice with no outputs compiles$'
+issue = "labscript-devices branch dummy-intermediate-no-outputs"
+
+[[failure]]
+step = "lyse"
+check = '^(lyse\.Plot is|lyse\.figure_to_clipboard exists|star import provides Plot)'
+issue = "lyse branch lyse-namespace-plot"
