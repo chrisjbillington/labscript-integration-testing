@@ -16,7 +16,7 @@ experiment scripts in them; see [Docs](#docs).
 The GitHub Actions workflow `.github/workflows/test.yml` runs the harness on Ubuntu and
 Windows for Python 3.11 to 3.14 with PySide6, PyQt6 and PyQt5 weekly and on demand with
 chosen component refs, Qt bindings, Pythons and runners, and builds the docs in one more
-job on Ubuntu with Python 3.11 and PyQt5. The weekly run also tests Python 3.15, and its 3.15 jobs may fail. A dispatch
+job on Ubuntu with Python 3.11 and PySide6. The weekly run also tests Python 3.15, and its 3.15 jobs may fail. A dispatch
 with the same inputs as a queued or running dispatch cancels the jobs of that run.
 
 ## Usage
@@ -25,7 +25,7 @@ with the same inputs as a queued or running dispatch cancels the jobs of that ru
 python harness/suite.py clone [name=[owner/repo@]ref ...]
 python harness/suite.py install --python 3.14 [--qt PySide6|PyQt6|PyQt5] [--pin "numpy<2.5"]
 python harness/suite.py test --python 3.14 [--step NAME] [--skip NAME] [--all]
-python harness/suite.py install --python 3.11 --qt PyQt5 --docs --venv harness/venvs/docs
+python harness/suite.py install --python 3.11 --docs --venv harness/venvs/docs
 python harness/suite.py docs --venv harness/venvs/docs [--step NAME]
 ```
 
@@ -145,9 +145,7 @@ except the Qt bindings, in the same resolver run. Where the components pin a pac
 different versions, the pin that the most components give is installed. `docs` runs the
 steps below in a venv installed with `--docs`, in the same way as `test`, with the
 report, the logs and the built docs in the same work directory as `test` (`--work` to
-change). The
-docs extras of the components require PyQt5, so the docs venv is installed with
-`--qt PyQt5`. The workflow uses Python 3.11, which is the Python version in the
+change). The workflow uses Python 3.11, which is the Python version in the
 `readthedocs.yaml` of most components.
 
 | Step | What it checks |

@@ -124,7 +124,7 @@ jobs:
           if-no-files-found: ignore
 
   # The docs, with the Python version of the Read the Docs configuration of the components
-  # and PyQt5, which their docs extras require.
+  # and PySide6.
   docs:
     name: docs
     needs: key
@@ -160,7 +160,7 @@ jobs:
           for pin in $PINS; do
             args+=(--pin "$pin")
           done
-          python harness/suite.py install --repos-dir repos --venv venv --qt PyQt5 --docs \
+          python harness/suite.py install --repos-dir repos --venv venv --qt PySide6 --docs \
             --python "$(python -c 'import sys; print(sys.executable)')" "${args[@]}"
 
       - name: Build the docs and compile the examples

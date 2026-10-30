@@ -13,7 +13,7 @@ each application.
 
 and builds the Sphinx docs of the components and compiles their example scripts:
 
-    python harness/suite.py install --python 3.11 --qt PyQt5 --docs
+    python harness/suite.py install --python 3.11 --docs
     python harness/suite.py docs --python 3.11
 
 Run `python harness/suite.py <command> --help` for the options. `harness/README.md`
