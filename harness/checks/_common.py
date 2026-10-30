@@ -117,13 +117,11 @@ def start_app(app, name=None):
 
 
 def stop_app(proc):
+    """Kill the application. On Linux the applications do not act on SIGTERM while the
+    main thread is in the Qt event loop."""
     if proc.poll() is None:
-        proc.terminate()
-        try:
-            proc.wait(timeout=30)
-        except subprocess.TimeoutExpired:
-            proc.kill()
-            proc.wait()
+        proc.kill()
+        proc.wait()
 
 
 def app_output(app):
