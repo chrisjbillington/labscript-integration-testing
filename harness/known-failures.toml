@@ -12,9 +12,9 @@
 [[failure]]
 step = "compile"
 check = '^an experiment with a DummyIntermediateDevice with no outputs compiles$'
-issue = "labscript-devices branch dummy-intermediate-no-outputs"
+issue = "labscript-devices #183"
 
 [[failure]]
 step = "lyse"
 check = '^(lyse\.Plot is|lyse\.figure_to_clipboard exists|star import provides Plot)'
-issue = "lyse branch lyse-namespace-plot"
+issue = "lyse #188"
