@@ -26,8 +26,7 @@ try:
     from labscript_devices.NarwhalPulseGenerator.driver import CYCLE
 except ImportError:
     CYCLE = None
-if not check(CYCLE is not None, 'the installed labscript-devices has the NarwhalPulseGenerator package',
-             known='labscript-devices narwhal-pulsegen branch'):
+if not check(CYCLE is not None, 'the installed labscript-devices has the NarwhalPulseGenerator package'):
     finish()
 
 FIX = FIXTURES / 'narwhal'

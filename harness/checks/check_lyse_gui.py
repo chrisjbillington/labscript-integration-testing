@@ -10,8 +10,7 @@ file open has its worker restarted once it closes the file, and the file is read
 analysis is paused in each case, and an interrupted worker then runs a routine to
 completion; Abort of a multishot routine pauses analysis, the next multishot routine
 does not run, and resuming runs the multishot routines again. In a subprocess, check that the
-Edit columns dialog survives being updated as 200 columns are added one at a time. The Abort checks are reported as KNOWN when
-lyse has no Abort button."""
+Edit columns dialog survives being updated as 200 columns are added one at a time."""
 
 import faulthandler
 import logging
@@ -43,7 +42,6 @@ from qtutils.qt import QtCore, QtWidgets
 
 qapplication = QtWidgets.QApplication.instance()
 
-ABORT_FEATURE = 'lyse #153'
 routines_dir = WORK / 'routines'
 routines_dir.mkdir(exist_ok=True)
 loop_script = routines_dir / 'loop_routine.py'
@@ -331,8 +329,7 @@ try:
           'the Edit columns dialog is updated 200 times as columns are added '
           f'(exit code {edit_columns.returncode})')
 
-    if not check(hasattr(filebox.ui, 'pushButton_abort'), 'the filebox has an Abort button',
-                 known=ABORT_FEATURE):
+    if not check(hasattr(filebox.ui, 'pushButton_abort'), 'the filebox has an Abort button'):
         finish()
     import lyse.utils.worker
     ABORT_TIMEOUT = lyse.utils.worker._ABORT_TIMEOUT

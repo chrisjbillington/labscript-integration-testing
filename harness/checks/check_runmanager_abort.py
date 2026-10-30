@@ -6,15 +6,13 @@ next shot is not compiled, and the compiler keeps running. The Restart subproces
 ends a compiler in a Python loop promptly with exit status 0 and one that ignores the
 interrupt after its abort timeout, and kills a stopped compiler after its quit timeout;
 the timeouts are shortened for the check. After each of these the compiler compiles
-three shots. The checks are reported as KNOWN when the installed runmanager does not have
-the feature."""
+three shots."""
 
 import os
 import runpy
 import sys
 import time
 import traceback
-from pathlib import Path
 
 from _common import FIXTURES, WORK, check, finish
 
@@ -23,12 +21,8 @@ out = WORK / 'runmanager_abort'
 out.mkdir(exist_ok=True)
 EXPERIMENT = str(FIXTURES / 'runmanager_abort' / 'experiment.py')
 
-import runmanager  # noqa: E402
 from qtutils.qt import QtCore, QtWidgets  # noqa: E402
 
-FEATURE = 'runmanager #152'
-HAS_FEATURE = 'ABORT_TIMEOUT' in (Path(runmanager.__file__).parent / 'batch_compiler.py').read_text()
-KNOWN = None if HAS_FEATURE else FEATURE
 # Slack in the upper bound of each duration, for slow runners:
 SLACK = 3
 
@@ -134,10 +128,9 @@ def run():
         wait(0, lambda: all(s in output()[start:] for s in ['Compilation interrupted', 'Compilation aborted']),
              limit=5)
         text = output()[start:]
-        check(stopped, f'{name}: the compilation stops within {1 + SLACK} s ({dt:.2f} s)', known=KNOWN)
+        check(stopped, f'{name}: the compilation stops within {1 + SLACK} s ({dt:.2f} s)')
         check('Compilation interrupted' in text and 'Compilation aborted' in text,
-              f'{name}: the output says that the compilation was interrupted and aborted',
-              known=KNOWN)
+              f'{name}: the output says that the compilation was interrupted and aborted')
         if not stopped:
             restart_subprocess()
             continue
@@ -156,7 +149,7 @@ def run():
         dt = time.monotonic() - t0
         check(exited and exit_range[0] <= dt <= exit_range[1] + SLACK and child.returncode == returncode,
               f'{name}: the compiler exits after {exit_range[0]} to {exit_range[1]} s with status '
-              f'{returncode} ({dt:.2f} s, status {child.returncode})', known=KNOWN)
+              f'{returncode} ({dt:.2f} s, status {child.returncode})')
         wait(0, lambda: 'Spawning new compiler subprocess...done.' in output()[start:], limit=10)
         wait(0.5, idle, limit=10)
         check_ok_compile(name)
@@ -164,7 +157,7 @@ def run():
     restart_check('restart subprocess during a Python loop', 'loop', (0, 1), 0)
     restart_check('restart subprocess during a compilation that ignores the interrupt',
                   'ignore', (1, 2), 0)
-    if sys.platform != 'win32' and HAS_FEATURE:
+    if sys.platform != 'win32':
         app.QUIT_TIMEOUT = 3
         restart_check('restart subprocess with the compiler stopped by SIGSTOP', 'freeze', (3, 4), -9)
 

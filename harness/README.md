@@ -123,20 +123,7 @@ finishes.
 
 A check for a known open bug is marked `KNOWN` in the log and does not fail the step.
 When the bug is fixed the check prints `FIXED` so that the marker can be removed. At
-present the `lyse-gui` check "the filebox has an Abort button" is marked as known for
-lyse #153, with the Abort checks run only when the button is present. The `narwhal`
-check "the installed labscript-devices has the NarwhalPulseGenerator package" is marked
-as known for the labscript-devices `narwhal-pulsegen` branch, with the rest of the step
-run only when the package is present. The `runmanager-api` check that a globals file is
-smaller than 1.5 MB after 600 writes is marked as known for runmanager #144. The `apps`
-checks that a second copy of an application reports that its port is in use are marked
-as known for blacs #138, lyse #159, runmanager #146 and runviewer #80, and the
-`blacs-shot` checks of a shot that is submitted as soon as BLACS listens are marked as
-known for blacs #138. The `blacs-workers` checks of the exit status and the time taken
-are marked as known for blacs #145, and the checks of a fatal error and of the stop
-button for blacs #146, with the stop button checks run only when the tab has one. The
-`runmanager-abort` checks of the Abort button and of the time taken and exit status
-after Restart subprocess are marked as known for runmanager #152.
+present no check script has such a marker.
 
 A check that fails on the current default branches of the components can also be
 marked as known without changing its script, in `known-failures.toml`. Each entry gives

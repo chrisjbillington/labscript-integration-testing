@@ -136,29 +136,11 @@ def run_worker(name, receiver, mock_data):
         check(group.attrs.get('camera') == name and not group.attrs['failed_shot'],
               f'{name}: images/{orientation} has camera {name!r} and failed_shot false')
         check(group.attrs.get('mock_data') is np.bool_(mock_data),
-              f'{name}: images/{orientation} has mock_data {mock_data}',
-              known=None if mock_data_saved() else 'labscript-devices triggerable-camera branch')
+              f'{name}: images/{orientation} has mock_data {mock_data}')
         images = {frametype: dataset[:] for frametype, dataset in group['harness'].items()}
         for frametype, image in images.items():
             check(image.dtype == np.uint16, f'{name}: {frametype} image is uint16')
         return images, dict(group.attrs)
-
-
-def pylon_mock_fixed():
-    """Whether the PylonCamera worker gets the attributes of the mock camera"""
-    import inspect
-    from labscript_devices.PylonCamera.blacs_workers import PylonCameraWorker
-
-    return 'self.mock' in inspect.getsource(PylonCameraWorker.get_attributes_as_dict)
-
-
-def mock_data_saved():
-    """Whether the worker saves the attribute mock_data"""
-    try:
-        from labscript_devices.common.triggerable_camera.blacs_workers import CameraInterface
-    except ImportError:
-        return False
-    return hasattr(CameraInterface, 'mock_data')
 
 
 def compile_shot():
@@ -174,8 +156,7 @@ def compile_shot():
 def check_dummy(receiver):
     with h5py.File(SHOT, 'r') as f:
         present = 'dummy' in f['devices']
-    if not check(present, 'the installed labscript-devices has DummyCamera',
-                 known='labscript-devices dummy-camera branch'):
+    if not check(present, 'the installed labscript-devices has DummyCamera'):
         return
     result = run_worker('dummy', receiver, True)
     if result is None:
@@ -202,8 +183,7 @@ def check_genicam(receiver):
         return
     with h5py.File(SHOT, 'r') as f:
         present = 'genicam' in f['devices']
-    if not check(present, 'the installed labscript-devices has GenICamCamera',
-                 known='labscript-devices genicam-camera branch'):
+    if not check(present, 'the installed labscript-devices has GenICamCamera'):
         return
     result = run_worker('genicam', receiver, False)
     if result is None:
@@ -241,8 +221,7 @@ def check_imaqdx_stub(receiver):
         from labscript_devices.IMAQdxCamera import imaqdx
     except ImportError:
         imaqdx = None
-    if not check(imaqdx is not None, 'the installed labscript-devices has the imaqdx module',
-                 known='labscript-devices imaqdx-ctypes branch'):
+    if not check(imaqdx is not None, 'the installed labscript-devices has the imaqdx module'):
         return
     result = run_worker('imaqdx_stub', receiver, False)
     check(nivision.stub_live_allocations() == 0,
@@ -320,10 +299,6 @@ try:
         finish()
 
     for name in MOCK_CAMERAS:
-        if name == 'pylon_mock' and not pylon_mock_fixed():
-            check(False, 'pylon_mock: the worker saves the attributes of the mock camera',
-                  known='labscript-devices triggerable-camera branch')
-            continue
         result = run_worker(name, receiver, True)
         if result is not None:
             images, _ = result

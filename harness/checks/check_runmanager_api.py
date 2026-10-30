@@ -175,7 +175,7 @@ runmanager.set_expansion(gf, 'fixed', 'derived', '')
 for n in range(600):
     runmanager.set_value(gf, 'fixed', 'duration', repr(n + 1.0))
 size = os.path.getsize(gf)
-check(size < 1.5e6, f'globals file is {size} bytes after 600 writes', known='runmanager #144')
+check(size < 1.5e6, f'globals file is {size} bytes after 600 writes')
 check(runmanager.get_value(gf, 'fixed', 'duration') == '600.0'
       and runmanager.get_units(gf, 'fixed', 'duration') == 's',
       'globals file contents after 600 writes')
@@ -196,7 +196,6 @@ check(isinstance(runmanager.globals_diff_groups(groups, groups), str), 'globals_
 # FutureWarning that names their numpy replacements; with False, they are left out. The file named
 # by globals_namespace in that section adds names, and a file that cannot be loaded is
 # an error for every global.
-NAMESPACE_FEATURE = 'runmanager #163'
 gf3 = str(work / 'namespace.h5')
 runmanager.new_globals_file(gf3)
 runmanager.new_group(gf3, 'g')
@@ -231,8 +230,7 @@ def evaluate_namespace_globals(global_names=('from_pylab', 'from_numpy', 'unit',
 try:
     set_runmanager_options(pylab_namespace='True')
     values, message = evaluate_namespace_globals()
-    if check('from_pylab: ' in message, f'pylab names give a FutureWarning: {message!r}',
-             known=NAMESPACE_FEATURE):
+    if check('from_pylab: ' in message, f'pylab names give a FutureWarning: {message!r}'):
         check(np.array_equal(values['from_pylab'], [0, 0.5, 1]) and np.array_equal(values['from_numpy'], [0, 0.5, 1])
               and values['unit'] == 0.002 and values['nested_sum'] == 10,
               f'globals evaluate with the pylab names: {values}')

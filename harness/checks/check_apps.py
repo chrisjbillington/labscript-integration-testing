@@ -30,14 +30,6 @@ APPS = [
     ('blacs', 'BLACS'),
 ]
 
-# The pull request with which each app reports that its port is in use.
-PORT_IN_USE_FIX = {
-    'runmanager': 'runmanager #146',
-    'runviewer': 'runviewer #80',
-    'lyse': 'lyse #159',
-    'blacs': 'blacs #138',
-}
-
 
 def runmanager_remote():
     from runmanager.remote import Client
@@ -114,14 +106,12 @@ def check_second_copy(app):
         stop_app(proc)
         log.close()
     reported = message in app_output(name)
-    check(reported, f'a second {app} reported that the port is in use after {seconds:.0f} s',
-          known=None if reported else PORT_IN_USE_FIX[app])
+    check(reported, f'a second {app} reported that the port is in use after {seconds:.0f} s')
     if app == 'blacs':
         check('Instantiating devices' not in blacs_log()[blacs_log_start:],
               'the second BLACS did not create device tabs')
     tracebacks = app_output(name).count('Traceback (most recent call last)')
-    check(tracebacks == 0, f'no traceback in the {name} output ({tracebacks} found)',
-          known=None if reported else PORT_IN_USE_FIX[app])
+    check(tracebacks == 0, f'no traceback in the {name} output ({tracebacks} found)')
     return reported
 
 

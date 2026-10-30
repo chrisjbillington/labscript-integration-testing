@@ -7,9 +7,7 @@ the file is readable; outside Windows, a worker stopped with SIGSTOP is killed a
 quit timeout. The timeouts are shortened for the check. After each restart the new worker
 runs a job. A fatal error ends the worker without calling its shutdown() method. The stop
 button runs shutdown() and ends the worker, the tab then runs no states and has a message
-that cannot be dismissed, and the button starts the tab again. The checks of the exit
-status and of the stop button are reported as KNOWN when the installed BLACS does not
-have the feature."""
+that cannot be dismissed, and the button starts the tab again."""
 
 import os
 import sys
@@ -42,10 +40,6 @@ from blacs.tab_base_classes import (
 from labscript_utils.qtwidgets.dragdroptab import DragDropTabWidget
 
 ALL = MODE_MANUAL | MODE_BUFFERED | MODE_TRANSITION_TO_BUFFERED | MODE_TRANSITION_TO_MANUAL
-QUIT_FEATURE = 'blacs #145'
-STOP_FEATURE = 'blacs #146'
-HAS_QUIT = hasattr(blacs.tab_base_classes, 'WORKER_QUIT_TIMEOUT')
-HAS_STOP = hasattr(Tab, 'stop')
 # Slack in the upper bound of each duration, for slow runners:
 SLACK = 3
 
@@ -125,7 +119,7 @@ def records():
         return []
 
 
-def restart_check(tab, name, job, exit_range, returncode, setup=None, end=None, known=None):
+def restart_check(tab, name, job, exit_range, returncode, setup=None, end=None):
     """Start a job, end the worker with end (default: restart the tab), and check that the
     worker exits after a time in exit_range with the given return code."""
     if setup is not None:
@@ -137,7 +131,7 @@ def restart_check(tab, name, job, exit_range, returncode, setup=None, end=None, 
     dt, code = wait_exit(child, exit_range[1] + SLACK + 70)
     check(dt is not None and exit_range[0] <= dt <= exit_range[1] + SLACK and code == returncode,
           f'{name}: the worker exits after {exit_range[0]} to {exit_range[1]} s with status '
-          f'{returncode} ({dt if dt is None else round(dt, 2)} s, status {code})', known=known)
+          f'{returncode} ({dt if dt is None else round(dt, 2)} s, status {code})')
     return child
 
 
@@ -158,7 +152,6 @@ def check_runs_jobs(tab, name, old_child):
 
 def run_checks(tab, directory):
     run_job(tab, 'sleep', 0)
-    quit_known = None if HAS_QUIT else QUIT_FEATURE
     # A restart waits for this long for a busy worker's shutdown() before ending it:
     w = getattr(Tab, 'SHUTDOWN_TIMEOUT', 0)
     # QTimer is accurate to 5%:
@@ -167,33 +160,29 @@ def run_checks(tab, directory):
     def short_timeouts(abort, kill_lock):
         return lambda: run_job(tab, 'set_timeouts', abort, kill_lock)
 
-    child = restart_check(tab, 'restart when idle', None, (0, 1), 0, known=quit_known)
+    child = restart_check(tab, 'restart when idle', None, (0, 1), 0)
     check_runs_jobs(tab, 'restart when idle', child)
-    child = restart_check(tab, 'restart during time.sleep', ('sleep', 100), (w0, w + 1), 0,
-                          known=quit_known)
+    child = restart_check(tab, 'restart during time.sleep', ('sleep', 100), (w0, w + 1), 0)
     check_runs_jobs(tab, 'restart during time.sleep', child)
-    child = restart_check(tab, 'restart during a Python loop', ('spin', 100), (w0, w + 1), 0,
-                          known=quit_known)
+    child = restart_check(tab, 'restart during a Python loop', ('spin', 100), (w0, w + 1), 0)
     check_runs_jobs(tab, 'restart during a Python loop', child)
     child = restart_check(tab, 'restart during a job that ignores the interrupt',
                           ('ignore_interrupt', 100), (w0 + 1, w + 2), 0,
-                          setup=short_timeouts(1, 30), known=quit_known)
+                          setup=short_timeouts(1, 30))
     check_runs_jobs(tab, 'restart during a job that ignores the interrupt', child)
     path = os.path.join(directory, 'held.h5')
     child = restart_check(tab, 'restart during a job that ignores the interrupt and writes '
                           'an HDF5 file for 6 s', ('hold_file', path, 6), (5, 7), 0,
-                          setup=short_timeouts(1, 30), known=quit_known)
+                          setup=short_timeouts(1, 30))
     try:
         with h5py.File(path, 'r') as f:
             readable = list(f['x'][:]) == list(range(10))
     except Exception:
         traceback.print_exc()
         readable = False
-    # Without the feature, the worker is terminated with the file open on Windows only:
-    check(readable, 'the HDF5 file written by the job is readable',
-          known=quit_known if sys.platform == 'win32' else None)
+    check(readable, 'the HDF5 file written by the job is readable')
     check_runs_jobs(tab, 'restart during a job that writes an HDF5 file', child)
-    if sys.platform != 'win32' and HAS_QUIT:
+    if sys.platform != 'win32':
         blacs.tab_base_classes.WORKER_QUIT_TIMEOUT = 3
         child = restart_check(tab, 'restart of a worker stopped with SIGSTOP', ('freeze',),
                               (w0 + 3, w + 3), -9)
@@ -205,14 +194,13 @@ def run_checks(tab, directory):
     tab.s_raise()
     wait_for(lambda: tab.state == 'fatal error')
     dt, code = wait_exit(child, 10 + SLACK)
-    stop_known = None if HAS_STOP else STOP_FEATURE
-    check(code == 0, 'a fatal error ends the worker with status 0', known=stop_known)
+    check(code == 0, 'a fatal error ends the worker with status 0')
     check(not any(r.startswith('shutdown') for r in records()),
           'a fatal error does not call the worker\'s shutdown()')
     inmain(tab.restart)
     check_runs_jobs(tab, 'restart after a fatal error', child)
 
-    if not check(HAS_STOP, 'the tab has a stop button', known=stop_known):
+    if not check(hasattr(Tab, 'stop'), 'the tab has a stop button'):
         return
     RECORD_FILE.write_text('')
     child = restart_check(tab, 'stop when idle', None, (0, 1), 0, end=tab._ui.button_stop.click)
