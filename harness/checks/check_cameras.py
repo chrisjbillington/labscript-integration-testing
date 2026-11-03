@@ -4,9 +4,9 @@ attributes text and continuous acquisition. The image group has the attribute mo
 which is true for the mock cameras and the DummyCamera. The mock camera of each camera
 package returns 500 x 500 images. The DummyCamera's images are the values of its
 functions. The GenICamCamera runs with the simulated GenTL producer of the genicam
-package, if harvesters is installed. On Linux, the IMAQdxCamera without mock runs in a
-second process with stub NI-IMAQdx and NI Vision libraries built from
-fixtures/cameras/imaqdx_stub, which check the ctypes declarations, the attribute types and
+package, if harvesters is installed and the genicam package has the producer. On Linux,
+the IMAQdxCamera without mock runs in a second process with stub NI-IMAQdx and NI Vision
+libraries built from fixtures/cameras/imaqdx_stub, which check the ctypes declarations, the attribute types and
 that every allocation is disposed."""
 
 import ctypes
@@ -180,6 +180,10 @@ def check_genicam(receiver):
         import harvesters  # noqa: F401
     except ImportError:
         print('harvesters is not installed, which has no genicam wheel for this Python')
+        return
+    import genicam
+    if not os.path.exists(os.path.join(os.path.dirname(genicam.__file__), 'viky.cti')):
+        print('The genicam package has no simulated GenTL producer viky.cti on this platform')
         return
     with h5py.File(SHOT, 'r') as f:
         present = 'genicam' in f['devices']
