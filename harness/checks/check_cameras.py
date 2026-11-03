@@ -6,8 +6,8 @@ package returns 500 x 500 images. The DummyCamera's images are the values of its
 functions. The GenICamCamera runs with the simulated GenTL producer of the genicam
 package, if harvesters is installed and the genicam package has the producer. On Linux,
 the IMAQdxCamera without mock runs in a second process with stub NI-IMAQdx and NI Vision
-libraries built from fixtures/cameras/imaqdx_stub, which check the ctypes declarations, the attribute types and
-that every allocation is disposed."""
+libraries built from fixtures/cameras/imaqdx_stub, which check the ctypes declarations,
+the attribute types and that every allocation is disposed."""
 
 import ctypes
 import json
