@@ -8,3 +8,18 @@
 # step = "docs-examples"
 # check = '^labscript-devices/docs/source/devices/pulseblaster\.rst:25 compiles'
 # issue = "labscript-devices #182"
+
+[[failure]]
+step = "runmanager-abort"
+check = '^engage immediately after restart subprocess: the sequence compiles three shots'
+issue = "runmanager #179"
+
+[[failure]]
+step = "runmanager-abort"
+check = '^abort with the compiler killed: Abort returns within'
+issue = "runmanager #179"
+
+[[failure]]
+step = "runmanager-abort"
+check = '^abort with the compiler killed: the output says that the compiler is not running'
+issue = "runmanager #179"

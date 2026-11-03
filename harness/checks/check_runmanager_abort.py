@@ -6,11 +6,15 @@ next shot is not compiled, and the compiler keeps running. The Restart subproces
 ends a compiler in a Python loop promptly with exit status 0 and one that ignores the
 interrupt after its abort timeout, and kills a stopped compiler after its quit timeout;
 the timeouts are shortened for the check. After each of these the compiler compiles
-three shots."""
+three shots. A sequence that is engaged immediately after Restart subprocess is compiled
+by the new compiler. With the compiler killed during a compilation, Abort returns
+promptly and the output says that the compiler is not running, and Restart subprocess
+then starts a compiler that compiles three shots."""
 
 import os
 import runpy
 import sys
+import threading
 import time
 import traceback
 
@@ -161,7 +165,58 @@ def run():
         app.QUIT_TIMEOUT = 3
         restart_check('restart subprocess with the compiler stopped by SIGSTOP', 'freeze', (3, 4), -9)
 
-    app.to_child.put(['quit', None])
+    def interrupt_after(queue, seconds):
+        """Interrupt the put() calls of the queue after the given duration, unless the
+        returned event is set first, so that a put() to a compiler that has exited does
+        not block the check forever."""
+        done = threading.Event()
+
+        def interrupt():
+            if not done.wait(seconds):
+                queue.interrupt('timed out')
+
+        threading.Thread(target=interrupt, daemon=True).start()
+        return done
+
+    name = 'engage immediately after restart subprocess'
+    old_to_child = app.to_child
+    set_mode('ok')
+    start = len(output())
+    app.ui.pushButton_restart_subprocess.click()
+    app.on_engage_clicked()
+    done = interrupt_after(old_to_child, 30)
+    finished = wait(0.5, lambda: idle() and 'shot 3 of 3' in output()[start:], limit=30 + SLACK)
+    done.set()
+    text = output()[start:]
+    if not check(finished and 'shot 3 of 3' in text and 'Compilation aborted' not in text,
+                 f'{name}: the sequence compiles three shots'):
+        print(text[-2000:], flush=True)
+
+    name = 'abort with the compiler killed'
+    child = app.child
+    start, ok = engage_and_wait_for_start('sleep')
+    check(ok, f'{name}: the shot starts')
+    child.kill()
+    child.wait()
+    done = interrupt_after(app.to_child, 1 + SLACK + 5)
+    t0 = time.monotonic()
+    try:
+        app.on_abort_clicked()
+        returned = True
+    except Exception:
+        traceback.print_exc()
+        returned = False
+    done.set()
+    dt = time.monotonic() - t0
+    check(returned and dt <= 1 + SLACK, f'{name}: Abort returns within {1 + SLACK} s ({dt:.2f} s)')
+    wait(0, lambda: 'not running' in output()[start:], limit=5)
+    check('not running' in output()[start:], f'{name}: the output says that the compiler is not running')
+    if returned:
+        restart_subprocess()
+        check(app.child is not child and app.child.poll() is None,
+              f'{name}: Restart subprocess starts a new compiler')
+        check_ok_compile(name)
+        app.to_child.put(['quit', None])
     QtWidgets.QApplication.instance().exit(0)
 
 
