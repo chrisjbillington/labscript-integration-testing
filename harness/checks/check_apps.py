@@ -1,11 +1,15 @@
 """Start each application under the offscreen Qt platform, wait for its ZMQ server port
 to accept connections, and exercise the runmanager remote API. Time
 `zprocess.port_in_use` on the port and on a free port. Start a second copy
-of the application, check that it reports the port in use, and for BLACS that it does so
-before it creates device tabs. Stop both copies."""
+of the application, check that it reports the port in use, for BLACS that it does so
+before it creates device tabs, and outside Windows that it exits with status 1 on SIGINT
+while it shows the message. Stop both copies."""
 
 import os
+import signal
 import socket
+import subprocess
+import sys
 import time
 
 from _common import (APP_STARTUP_TIMEOUT, WORK, app_output, attempt, check, finish, listening,
@@ -19,6 +23,8 @@ except ImportError:
 
 state = load_state()
 HOLD = 5
+# Time allowed for a second copy to exit after SIGINT:
+SIGINT_TIMEOUT = 10
 PROBES = 20
 BLACS_LOG = profile_dir() / 'logs' / 'BLACS.log'
 
@@ -102,6 +108,17 @@ def check_second_copy(app):
                 break
             time.sleep(0.5)
         seconds = time.time() - t0
+        if sys.platform != 'win32' and message in app_output(name) and proc.poll() is None:
+            # The application logs the message before it shows the message box:
+            time.sleep(1)
+            proc.send_signal(signal.SIGINT)
+            try:
+                proc.wait(SIGINT_TIMEOUT)
+            except subprocess.TimeoutExpired:
+                pass
+            check(proc.returncode == 1,
+                  f'a second {app} exits with status 1 within {SIGINT_TIMEOUT} s of SIGINT '
+                  f'(status {proc.returncode})')
     finally:
         stop_app(proc)
         log.close()

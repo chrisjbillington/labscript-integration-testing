@@ -1,7 +1,11 @@
 """Compile the profile's connection table and the example experiment through runmanager,
 and check the shot file contents, including the functions of the FunctionRunner that the
-profile step adds, and the exposures of the mock camera that it adds."""
+profile step adds, and the exposures of the mock camera that it adds. Scripts in cp1252
+with an encoding declaration and in UTF-8 without one compile, with their string literals
+decoded as Python decodes them, and a script in cp1252 without a declaration fails before
+it runs."""
 
+import json
 import os
 import sys
 from datetime import datetime
@@ -103,6 +107,44 @@ sequence_attrs, _, _ = runmanager.new_sequence_details(str(empty_script), config
 runmanager.make_single_run_file(empty_shot, {}, {}, sequence_attrs, 0, 1)
 empty_ok = check(compile_script(str(empty_script), empty_shot),
                  'an experiment with a DummyIntermediateDevice with no outputs compiles')
+
+# Scripts with a micro sign in a string literal, which the script writes to a file:
+ENCODING_BODY = (
+    'import json\n'
+    'from labscript import start, stop\n'
+    'from labscript_devices.DummyPseudoclock.labscript_devices import DummyPseudoclock\n'
+    "label = '\u00b5s'\n"
+    "with open(__file__ + '.json', 'w') as f:\n"
+    '    json.dump(label, f)\n'
+    "DummyPseudoclock(name='pseudoclock')\n"
+    'start()\n'
+    'stop(1)\n'
+)
+for name, data, should_compile in [
+    ('cp1252 with an encoding declaration',
+     ('# -*- coding: cp1252 -*-\n' + ENCODING_BODY).encode('cp1252'), True),
+    ('UTF-8 without an encoding declaration', ENCODING_BODY.encode('utf8'), True),
+    ('cp1252 without an encoding declaration', ENCODING_BODY.encode('cp1252'), False),
+]:
+    encoding_script = WORK / ('encoding_' + name.replace(' ', '_') + '.py')
+    encoding_script.write_bytes(data)
+    label_file = Path(str(encoding_script) + '.json')
+    label_file.unlink(missing_ok=True)
+    encoding_shot = str(SHOTS / (encoding_script.stem + '.h5'))
+    sequence_attrs, _, _ = runmanager.new_sequence_details(
+        str(encoding_script), config=config, increment_sequence_index=False
+    )
+    runmanager.make_single_run_file(encoding_shot, {}, {}, sequence_attrs, 0, 1)
+    compiled = compile_script(str(encoding_script), encoding_shot)
+    label = json.loads(label_file.read_text()) if label_file.exists() else None
+    if should_compile:
+        check(compiled and label == '\u00b5s',
+              f'script encoding: a script in {name} compiles, and its string literal is '
+              f'decoded as Python decodes it (compiled {compiled}, literal {label!r})')
+    else:
+        check(not compiled and label is None,
+              f'script encoding: a script in {name} fails before it runs '
+              f'(compiled {compiled}, literal {label!r})')
 
 save_state(connection_table_h5=ct_h5, example_shot=run_file, example_script=script,
            empty_device_shot=empty_shot if empty_ok else None)
