@@ -2,9 +2,63 @@
 # the step `step` with a message that matches the regular expression `check` is reported
 # as KNOWN with `issue`, the public issue or pull request that fixes it, and does not
 # fail the step. When no check of the step matches an entry, the step reports the entry
-# as FIXED so that it can be removed. For example:
+# as FIXED so that it can be removed. An entry with `platforms`, a list of values of
+# `sys.platform`, applies only on those platforms. For example:
 #
 # [[failure]]
 # step = "docs-examples"
 # check = '^labscript-devices/docs/source/devices/pulseblaster\.rst:25 compiles'
 # issue = "labscript-devices #182"
+
+[[failure]]
+step = "compile"
+check = '^script encoding: '
+issue = "runmanager #180"
+
+[[failure]]
+step = "apps"
+check = '^a second runmanager exits with status 1 within'
+issue = "runmanager #181"
+platforms = ["linux", "darwin"]
+
+[[failure]]
+step = "apps"
+check = '^no traceback in the runmanager-second output'
+issue = "runmanager #181"
+platforms = ["linux", "darwin"]
+
+[[failure]]
+step = "apps"
+check = '^a second runviewer exits with status 1 within'
+issue = "runviewer #91"
+platforms = ["linux", "darwin"]
+
+[[failure]]
+step = "apps"
+check = '^no traceback in the runviewer-second output'
+issue = "runviewer #91"
+platforms = ["linux", "darwin"]
+
+[[failure]]
+step = "apps"
+check = '^a second lyse exits with status 1 within'
+issue = "lyse #196"
+platforms = ["linux", "darwin"]
+
+[[failure]]
+step = "apps"
+check = '^no traceback in the lyse-second output'
+issue = "lyse #196"
+platforms = ["linux", "darwin"]
+
+[[failure]]
+step = "apps"
+check = '^a second blacs exits with status 1 within'
+issue = "blacs #167"
+platforms = ["linux", "darwin"]
+
+[[failure]]
+step = "apps"
+check = '^no traceback in the blacs-second output'
+issue = "blacs #167"
+platforms = ["linux", "darwin"]

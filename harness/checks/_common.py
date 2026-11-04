@@ -22,7 +22,7 @@ KNOWN_FAILURES = [
     entry for entry in tomllib.loads(
         (Path(__file__).resolve().parent.parent / 'known-failures.toml').read_text(encoding='utf8')
     ).get('failure', [])
-    if entry['step'] == STEP
+    if entry['step'] == STEP and sys.platform in entry.get('platforms', [sys.platform])
 ]
 
 # Written into a profile directory that the harness created, so that a later run may
