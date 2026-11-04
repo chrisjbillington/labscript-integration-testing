@@ -623,6 +623,9 @@ def cmd_docs(args):
 
 
 def main():
+    # The output of a check can contain characters that the console encoding does not
+    # have, such as cp1252 on Windows:
+    sys.stdout.reconfigure(errors='replace')
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = parser.add_subparsers(dest='command', required=True)
